@@ -1,0 +1,51 @@
+{
+    "token":  "MTQ2MzE4MjcxMDcyNTE1MjkwOA.GfGdjy.C7hqcifZQYgHyrxrxle31jQoXaTceeXJD-ryfQ",
+    "guildId":  "1466513219530129543",
+    "guildIds":  [
+                     "1466513219530129543",
+                     "1259733702280216638"
+                 ],
+    "ownerId":  "795466540140986368",
+    "ticketCategoryId":  "1463248424177766566",
+    "helperApplyCategoryId":  "1441500200173572298",
+    "reviewChannelId":  "1463249362741366850",
+    "vipRoleId":  "1392895474784010425",
+    "boosterRoleId":  "1267266564961341501",
+    "robuxLink":  "https://your-robux-link",
+    "moneyLink":  "https://your-money-link",
+    "pointsPerTicket":  5,
+    "guilds":  {
+                   "1259733702280216638":  {
+                                               "ticketCategoryId":  "1463248424177766566",
+                                               "helperApplyCategoryId":  "1441500200173572298",
+                                               "reviewChannelId":  "1463249362741366850",
+                                               "vipRoleId":  "1392895474784010425",
+                                               "boosterRoleId":  "1267266564961341501",
+                                               "robuxLink":  "https://your-robux-link",
+                                               "moneyLink":  "https://your-money-link",
+                                               "pointsPerTicket":  5,
+                                               "helperRoleId":  "1466519188079120586",
+                                               "applicationViewRoleIds":  [
+                                                                              "1466519188079120586"
+                                                                          ]
+                                           },
+                   "1466513219530129543":  {
+                                               "ticketCategoryId":  "1466513220142502109",
+                                               "helperApplyCategoryId":  "1466513220142502109",
+                                               "reviewChannelId":  "1466513220142502109",
+                                               "vipRoleId":  "",
+                                               "boosterRoleId":  "",
+                                               "robuxLink":  "https://your-robux-link",
+                                               "moneyLink":  "https://your-money-link",
+                                               "pointsPerTicket":  5,
+                                               "helperRoleId":  "1466519188079120586",
+                                               "applicationViewRoleIds":  [
+                                                                              "1466519188079120586"
+                                                                          ]
+                                           }
+               },
+    "helperRoleId":  "1466519188079120586",
+    "applicationViewRoleIds":  [
+                                   "1466519188079120586"
+                               ]
+}

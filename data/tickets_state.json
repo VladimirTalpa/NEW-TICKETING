@@ -1,0 +1,140 @@
+{
+  "1472417203960811531": {
+    "msg": "1472417206632448071",
+    "game": "ac",
+    "kind": "carry",
+    "shop": false,
+    "owner": "795466540140986368",
+    "ticket": 8,
+    "urgent": false,
+    "claimed": "795466540140986368",
+    "request": "IGN: rerer\nPrivate server: NO\n\nesrse",
+    "vouched": true,
+    "createdAt": 1771122018705,
+    "vouchedBy": {
+      "795466540140986368": {
+        "at": 1771122071676
+      }
+    },
+    "completionLogged": true
+  },
+  "1472426547578146948": {
+    "msg": "1472426550002585794",
+    "game": "ap",
+    "kind": "carry",
+    "shop": false,
+    "owner": "795466540140986368",
+    "ticket": 9,
+    "urgent": false,
+    "claimed": "795466540140986368",
+    "request": "IGN: rere\nPrivate server: YES\n\nafafaf",
+    "vouched": true,
+    "createdAt": 1771124246353,
+    "vouchedBy": {
+      "795466540140986368": {
+        "at": 1771124278220
+      }
+    },
+    "completionLogged": true
+  },
+  "1472458594598518967": {
+    "msg": "1472458596993335449",
+    "game": "utd",
+    "kind": "helper",
+    "shop": false,
+    "owner": "795466540140986368",
+    "ticket": 11,
+    "urgent": false,
+    "claimed": null,
+    "request": "Please send screenshots of units + proof. Staff will review soon.",
+    "vouched": false,
+    "createdAt": 1771131886427,
+    "completionLogged": false
+  },
+  "1472458691667169443": {
+    "msg": "1472458692820471839",
+    "game": "ac",
+    "kind": "carry",
+    "shop": false,
+    "owner": "795466540140986368",
+    "ticket": 12,
+    "urgent": false,
+    "claimed": "795466540140986368",
+    "request": "IGN: test\nPrivate server: NO\n\ndfsdf",
+    "vouched": false,
+    "createdAt": 1771131909522,
+    "completionLogged": false
+  },
+  "1472461296208187536": {
+    "msg": "1472461297798090833",
+    "game": "ac",
+    "kind": "carry",
+    "shop": false,
+    "owner": "795466540140986368",
+    "ticket": 13,
+    "urgent": false,
+    "claimed": "795466540140986368",
+    "request": "IGN: zees\nPrivate server: NO\n\ndsfsd",
+    "vouched": true,
+    "createdAt": 1771132530786,
+    "vouchedBy": {
+      "795466540140986368": {
+        "at": 1771132584821
+      }
+    },
+    "completionLogged": true
+  },
+  "1472468246467969243": {
+    "msg": "1472468249043275797",
+    "game": "av",
+    "kind": "carry",
+    "shop": true,
+    "owner": "795466540140986368",
+    "ticket": 15,
+    "urgent": false,
+    "claimed": "795466540140986368",
+    "request": "IGN: test\nPrivate server: YES\n\nadc",
+    "vouched": true,
+    "createdAt": 1771134188058,
+    "vouchedBy": {
+      "795466540140986368": {
+        "at": 1771134205497
+      }
+    },
+    "completionLogged": true
+  },
+  "1472483318913175553": {
+    "msg": "1472483322742575246",
+    "game": "av",
+    "kind": "carry",
+    "shop": false,
+    "owner": "653198564717101076",
+    "ticket": 26,
+    "urgent": false,
+    "claimed": null,
+    "request": "IGN: кпуа\nPrivate server: NO\n\nпкуп",
+    "vouched": false,
+    "createdAt": 1771137781780,
+    "completionLogged": false
+  },
+  "1472489167035564173": {
+    "msg": "1472489169501814804",
+    "game": "ac",
+    "kind": "carry",
+    "shop": true,
+    "owner": "795466540140986368",
+    "ticket": 30,
+    "urgent": false,
+    "claimed": "795466540140986368",
+    "request": "IGN: 3\nPrivate server: NO\n\n3",
+    "vouched": true,
+    "createdAt": 1771139175933,
+    "vouchedBy": {
+      "795466540140986368": {
+        "at": 1771139191044
+      }
+    },
+    "completionLogged": true,
+    "vouchButtonTouched": true
+  }
+}
