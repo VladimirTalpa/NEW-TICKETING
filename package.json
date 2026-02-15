@@ -1,0 +1,15 @@
+{
+  "name": "dae-core-bot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@napi-rs/canvas": "^0.1.92",
+    "@supabase/supabase-js": "^2.95.3",
+    "discord.js": "^14.25.1",
+    "dotenv": "^17.3.1"
+  }
+}
