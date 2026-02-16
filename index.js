@@ -344,6 +344,18 @@ async function hydrateStateFromSupabase() {
   }
 }
 
+async function refreshLeaderboardStateFromSupabase() {
+  if (!supabase) return;
+  try {
+    const remoteHelpers = await sbLoadState("helpers", null);
+    const remoteWeekly = await sbLoadState("weekly", null);
+    if (remoteHelpers && typeof remoteHelpers === "object") helpers = remoteHelpers;
+    if (remoteWeekly && typeof remoteWeekly === "object") weekly = remoteWeekly;
+  } catch (e) {
+    console.error("Supabase leaderboard refresh failed:", e?.message || e);
+  }
+}
+
 function inlineBox(text) {
   const s = String(text ?? "").replace(/`/g, "Ë‹");
   return `\`${s}\``;
@@ -401,12 +413,21 @@ function helperRoleForGame(guildId, game) {
   const id = String(candidate || "");
   return isSnowflake(id) ? id : null;
 }
+function memberRoleIds(member) {
+  if (!member) return new Set();
+  if (member?.roles?.cache) return new Set(member.roles.cache.keys());
+  if (Array.isArray(member?.roles)) return new Set(member.roles.map((r) => String(r)));
+  if (Array.isArray(member?._roles)) return new Set(member._roles.map((r) => String(r)));
+  return new Set();
+}
 function hasAnyRole(member, roles) {
-  return !!member?.roles?.cache && roles.some((r) => member.roles.cache.has(r));
+  const roleSet = memberRoleIds(member);
+  return roles.some((r) => roleSet.has(String(r)));
 }
 function isGameHelper(member, game) {
   const rid = helperRoleForGame(member?.guild?.id, game);
-  return !!rid && member?.roles?.cache?.has(rid);
+  if (!rid) return false;
+  return memberRoleIds(member).has(String(rid));
 }
 function canStaffClose(member, game) {
   return isGameHelper(member, game) || hasAnyRole(member, [...STAFF_CLOSE_ROLES]);
@@ -668,159 +689,183 @@ function drawAvatarOrbit(ctx, cx, cy, baseRadius, opts = {}) {
 }
 
 async function buildLeaderboardImage(guild, topRows) {
-  const width = 1100;
-  const headerH = 198;
-  const rowH = 148;
-  const rowsToRender = Math.max(topRows.length, 1);
-  const height = headerH + rowsToRender * rowH + 42;
-  const padding = 34;
+  const rows = Array.isArray(topRows) ? topRows.slice(0, 10) : [];
+  const width = 1600;
+  const extraRows = Math.max(0, rows.length - 1);
+  const height = 760 + extraRows * 118;
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext("2d");
-  const FONT_TITLE = "700 56px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif";
-  const FONT_SUB = "500 24px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif";
-  const FONT_ROW_MAIN = "700 47px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif";
-  const FONT_ROW_META = "700 33px \"Orbitron\", \"Inter\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", sans-serif";
 
   const bg = ctx.createLinearGradient(0, 0, width, height);
-  bg.addColorStop(0, "#050505");
-  bg.addColorStop(0.5, "#0d0d0d");
-  bg.addColorStop(1, "#151515");
+  bg.addColorStop(0, "#070503");
+  bg.addColorStop(0.45, "#1a1208");
+  bg.addColorStop(1, "#060606");
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, width, height);
 
-  const glow = ctx.createRadialGradient(width * 0.72, 106, 20, width * 0.72, 106, 320);
-  glow.addColorStop(0, "rgba(255,255,255,0.26)");
-  glow.addColorStop(1, "rgba(255,255,255,0)");
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, width, height);
-  drawParticleField(ctx, width, height, ["255,255,255", "240,240,240", "255,62,62"], 58);
+  drawParticleField(ctx, width, height, ["255,218,152", "255,176,88", "255,255,255"], 150);
 
-  roundedRectPath(ctx, 16, 16, width - 32, height - 32, 24);
-  ctx.fillStyle = "#090909";
-  ctx.fill();
-  ctx.strokeStyle = "#f3f3f3";
-  ctx.lineWidth = 2;
-  ctx.stroke();
-  roundedRectPath(ctx, 24, 24, width - 48, height - 48, 20);
-  ctx.strokeStyle = "rgba(255,64,64,0.62)";
-  ctx.lineWidth = 1.2;
-  ctx.stroke();
-
-  ctx.fillStyle = "#ffffff";
-  ctx.font = FONT_TITLE;
-  ctx.shadowColor = "rgba(255,255,255,0.36)";
-  ctx.shadowBlur = 16;
-  ctx.fillText("Leaderboard of Mohgs Server", padding, 88);
-  ctx.shadowBlur = 0;
-
-  await drawLineWithEmoji(ctx, {
-    emojiId: EMOJI_TICKET,
-    text: "Top helpers by completed tickets",
-    x: padding,
-    y: 126,
-    font: FONT_SUB,
-    color: "#dddddd",
-    iconSize: 20,
-    gap: 8,
-  });
-  await drawLineWithEmoji(ctx, {
-    emojiId: EMOJI_RANK,
-    text: `Server: ${guild?.name || "Unknown Guild"}`,
-    x: padding,
-    y: 154,
-    font: FONT_SUB,
-    color: "#dddddd",
-    iconSize: 20,
-    gap: 8,
-  });
-
-  for (let i = 0; i < topRows.length; i++) {
-    const row = topRows[i];
-    const y = headerH + i * rowH + 8;
-    const rowX = 28;
-    const rowW = width - 56;
-    const rowHInner = rowH - 16;
-
-    roundedRectPath(ctx, rowX, y, rowW, rowHInner, 18);
-    ctx.fillStyle = i % 2 === 0 ? "#121212" : "#0d0d0d";
-    ctx.fill();
-    ctx.strokeStyle = i < 3 ? "#ffffff" : "#4e4e4e";
-    ctx.lineWidth = i < 3 ? 2 : 1.3;
+  for (let i = 0; i < 24; i++) {
+    const x = Math.random() * width;
+    const y = Math.random() * (height * 0.95);
+    const len = 140 + Math.random() * 390;
+    const angle = (Math.random() - 0.5) * 0.7;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    const g = ctx.createLinearGradient(-len / 2, 0, len / 2, 0);
+    g.addColorStop(0, "rgba(255,175,80,0)");
+    g.addColorStop(0.5, "rgba(255,196,120,0.5)");
+    g.addColorStop(1, "rgba(255,175,80,0)");
+    ctx.strokeStyle = g;
+    ctx.lineWidth = 1.1 + Math.random() * 2.2;
+    ctx.shadowColor = "rgba(255,189,110,0.85)";
+    ctx.shadowBlur = 14;
+    ctx.beginPath();
+    ctx.moveTo(-len / 2, 0);
+    ctx.lineTo(len / 2, 0);
     ctx.stroke();
-
-    if (i < 3) {
-      roundedRectPath(ctx, rowX + 10, y + 12, 8, rowHInner - 24, 4);
-      ctx.fillStyle = i === 0 ? "#ffffff" : i === 1 ? "#ff8e59" : "#ffb659";
-      ctx.fill();
-    }
-
-    const avatarX = rowX + 28;
-    const avatarSize = 80;
-    const avatarY = y + Math.floor((rowHInner - avatarSize) / 2);
-    const rankX = avatarX + avatarSize + 26;
-    const nameX = rankX + 98;
-
-    await drawNeonAvatar(ctx, row.avatarUrl, avatarX, avatarY, avatarSize, {
-      outerStroke: i < 3 ? "#ffffff" : "#efefef",
-      outerGlow: i < 3 ? "rgba(255,255,255,0.88)" : "rgba(255,255,255,0.62)",
-    });
-
-    await drawLineWithEmoji(ctx, {
-      emojiId: EMOJI_RANK,
-      text: `#${i + 1}`,
-      x: rankX,
-      y: y + 58,
-      font: "700 39px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif",
-      color: "#f6f6f6",
-      iconSize: 22,
-      gap: 8,
-    });
-
-    ctx.font = FONT_ROW_MAIN;
-    ctx.fillStyle = "#f1f1f1";
-    ctx.fillText(fitText(ctx, row.name, 360), nameX, y + 60);
-
-    const ticketText = `${row.tickets} tickets`;
-    const ratingRaw = typeof row.rating === "number"
-      ? `${row.rating.toFixed(2)}/5 ${starsFromRating(row.rating)}`
-      : "No rating";
-    const ratingText = fitText(ctx, ratingRaw, 330);
-
-    await drawLineWithEmoji(ctx, {
-      emojiId: EMOJI_TICKET,
-      text: ticketText,
-      x: nameX,
-      y: y + 110,
-      font: FONT_ROW_META,
-      color: "#e7e7e7",
-      iconSize: 20,
-      gap: 8,
-    });
-
-    ctx.font = FONT_ROW_META;
-    const prefixW = 20 + 8 + ctx.measureText(ticketText).width + 24;
-    await drawLineWithEmoji(ctx, {
-      emojiId: EMOJI_STARS,
-      text: ratingText,
-      x: nameX + prefixW,
-      y: y + 110,
-      font: FONT_ROW_META,
-      color: "#e7e7e7",
-      iconSize: 20,
-      gap: 8,
-    });
+    ctx.restore();
   }
 
-  if (topRows.length === 0) {
-    roundedRectPath(ctx, 28, headerH + 8, width - 56, rowH - 16, 18);
-    ctx.fillStyle = "#121212";
+  roundedRectPath(ctx, 18, 18, width - 36, height - 36, 30);
+  ctx.fillStyle = "rgba(8,8,8,0.86)";
+  ctx.fill();
+  ctx.strokeStyle = "#f4bc73";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  roundedRectPath(ctx, 28, 28, width - 56, height - 56, 26);
+  ctx.strokeStyle = "rgba(255,199,130,0.56)";
+  ctx.lineWidth = 1.3;
+  ctx.stroke();
+
+  ctx.fillStyle = "#ffe6c2";
+  ctx.font = "700 82px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif";
+  const title = "Leaderboard";
+  ctx.fillText(title, (width - ctx.measureText(title).width) / 2, 126);
+
+  ctx.fillStyle = "#f8cb90";
+  ctx.font = "600 52px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif";
+  const serverLine = String(guild?.name || "MOHGS SERVER").toUpperCase();
+  ctx.fillText(serverLine, (width - ctx.measureText(serverLine).width) / 2, 182);
+
+  ctx.fillStyle = "#f4e3cd";
+  ctx.font = "500 40px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif";
+  const subtitle = "Top helpers by completed tickets";
+  ctx.fillText(subtitle, (width - ctx.measureText(subtitle).width) / 2, 230);
+
+  if (rows.length === 0) {
+    roundedRectPath(ctx, 220, 300, 1160, 300, 28);
+    ctx.fillStyle = "rgba(10,10,10,0.92)";
     ctx.fill();
-    ctx.strokeStyle = "#f3f3f3";
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = "#efb66a";
+    ctx.lineWidth = 2;
     ctx.stroke();
-    ctx.fillStyle = "#ececec";
-    ctx.font = "600 34px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif";
-    ctx.fillText("No helper data yet.", padding + 14, headerH + 94);
+    ctx.fillStyle = "#ffe4bd";
+    ctx.font = "700 64px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif";
+    const empty = "No helper data yet";
+    ctx.fillText(empty, (width - ctx.measureText(empty).width) / 2, 480);
+    return canvas.toBuffer("image/png");
+  }
+
+  function drawCrown(cx, cy, scale = 1) {
+    const w = 106 * scale;
+    const h = 56 * scale;
+    const x = cx - w / 2;
+    const y = cy - h / 2;
+    const grad = ctx.createLinearGradient(x, y, x, y + h);
+    grad.addColorStop(0, "#ffe7a8");
+    grad.addColorStop(0.6, "#f8bf61");
+    grad.addColorStop(1, "#cf8f3d");
+    ctx.save();
+    ctx.fillStyle = grad;
+    ctx.shadowColor = "rgba(255,195,110,0.85)";
+    ctx.shadowBlur = 16;
+    ctx.beginPath();
+    ctx.moveTo(x, y + h);
+    ctx.lineTo(x + w * 0.18, y + h * 0.35);
+    ctx.lineTo(x + w * 0.34, y + h * 0.62);
+    ctx.lineTo(x + w * 0.5, y + h * 0.08);
+    ctx.lineTo(x + w * 0.66, y + h * 0.62);
+    ctx.lineTo(x + w * 0.82, y + h * 0.35);
+    ctx.lineTo(x + w, y + h);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "#ffe6b4";
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  const first = rows[0];
+  roundedRectPath(ctx, 230, 270, 1140, 350, 30);
+  ctx.fillStyle = "rgba(9,9,9,0.9)";
+  ctx.fill();
+  ctx.strokeStyle = "#efb56a";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  const centerX = width / 2;
+  const avatarSize = 250;
+  const avatarX = Math.floor(centerX - avatarSize / 2);
+  const avatarY = 312;
+  await drawNeonAvatar(ctx, first.avatarUrl, avatarX, avatarY, avatarSize, {
+    outerStroke: "#ffc977",
+    outerGlow: "rgba(255,192,112,0.92)",
+    innerGlow: "rgba(255,246,220,0.72)",
+  });
+  drawAvatarOrbit(ctx, centerX, avatarY + avatarSize / 2, avatarSize / 2 + 14, {
+    main: "rgba(255,230,170,0.95)",
+    alt: "rgba(255,178,88,0.95)",
+    count: 4,
+  });
+  drawCrown(centerX, avatarY - 22, 1.08);
+
+  ctx.font = "700 66px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif";
+  ctx.fillStyle = "#ffe7c6";
+  const topName = fitText(ctx, `#1 ${String(first.name || "Unknown")}`.toUpperCase(), 920);
+  ctx.fillText(topName, centerX - ctx.measureText(topName).width / 2, 600);
+
+  ctx.font = "600 50px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif";
+  ctx.fillStyle = "#ffd7ac";
+  const topRating = typeof first.rating === "number" ? `${first.rating.toFixed(2)}/5 ${starsFromRating(first.rating)}` : "No rating";
+  const topMeta = `${first.tickets} Tickets   •   ${topRating}`;
+  ctx.fillText(fitText(ctx, topMeta, 930), centerX - ctx.measureText(fitText(ctx, topMeta, 930)).width / 2, 648);
+
+  async function drawRowCard(row, rank, y) {
+    const x = 180;
+    const w = 1240;
+    const h = 102;
+    roundedRectPath(ctx, x, y, w, h, 20);
+    ctx.fillStyle = "rgba(10,10,10,0.92)";
+    ctx.fill();
+    ctx.strokeStyle = "#efb56a";
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+
+    const a = 74;
+    await drawNeonAvatar(ctx, row.avatarUrl, x + 18, y + 14, a, {
+      outerStroke: "#ffc976",
+      outerGlow: "rgba(255,194,114,0.85)",
+      innerGlow: "rgba(255,248,225,0.62)",
+    });
+
+    ctx.font = "700 48px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif";
+    ctx.fillStyle = "#ffe9ca";
+    const line1 = fitText(ctx, `#${rank} ${String(row.name || "Unknown")}`, 860);
+    ctx.fillText(line1, x + 114, y + 48);
+
+    ctx.font = "500 40px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif";
+    ctx.fillStyle = "#f8d7b0";
+    const r = typeof row.rating === "number" ? `${row.rating.toFixed(2)}/5 ${starsFromRating(row.rating)}` : "No rating";
+    const line2 = fitText(ctx, `${row.tickets} Tickets   •   ${r}`, 860);
+    ctx.fillText(line2, x + 114, y + 92);
+  }
+
+  for (let i = 1; i < rows.length; i++) {
+    const y = 650 + (i - 1) * 118;
+    await drawRowCard(rows[i], i + 1, y);
   }
 
   return canvas.toBuffer("image/png");
@@ -2039,6 +2084,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
 
     if (cmd === "leaderboard") {
+      await refreshLeaderboardStateFromSupabase();
       const top = Object.entries(helpers)
         .map(([id, r]) => ({
           id,
@@ -2066,6 +2112,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
 
     if (cmd === "weeklyleaderboard") {
+      await refreshLeaderboardStateFromSupabase();
       touchWeekly();
       const top = Object.entries(weekly.helpers || {})
         .map(([id, count]) => ({ id, tickets: count }))
@@ -2370,7 +2417,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
       if (!ch || ch.type !== ChannelType.GuildText) return safeReply(interaction, { content: "Not a ticket channel." });
       const t = getTicket(ch.id);
       if (!t || t.kind !== "carry") return safeReply(interaction, { content: "Ticket not found." });
-      if (!isGameHelper(interaction.member, t.game)) return safeReply(interaction, { content: "Helpers for this game only." });
+            let claimMember = interaction.member;
+      if (!isGameHelper(claimMember, t.game)) {
+        const fetchedMember = await interaction.guild?.members?.fetch(interaction.user.id).catch(() => null);
+        if (!isGameHelper(fetchedMember, t.game)) {
+          return safeReply(interaction, { content: "Helpers for this game only." });
+        }
+        claimMember = fetchedMember;
+      }
       if (t.claimed) return safeReply(interaction, { content: `Already claimed by <@${t.claimed}>.` });
       patchTicket(ch.id, { claimed: interaction.user.id });
       await updateTicketPanelMessage(ch, { status: `Claimed by <@${interaction.user.id}>` });
@@ -2541,6 +2595,13 @@ if (!BOT_TOKEN) {
   throw new Error("Missing bot token. Set DISCORD_TOKEN or BOT_TOKEN in .env");
 }
 client.login(BOT_TOKEN);
+
+
+
+
+
+
+
 
 
 
