@@ -2347,6 +2347,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const msg = await channel.send(buildTicketMessagePayload(t, { status: "Waiting for claim" }));
       t.msg = msg.id;
       setTicket(channel.id, t);
+      const openPingRoleId = helperRoleForGame(guild.id, game);
+      if (openPingRoleId && guild.roles.cache.has(openPingRoleId)) {
+        await channel.send({
+          content: `<@&${openPingRoleId}> new ${String(game || "").toUpperCase()} ticket opened.`,
+          allowedMentions: { roles: [openPingRoleId] },
+        }).catch(() => {});
+      }
+
       return safeReply(interaction, { content: `Ticket created: <#${channel.id}>` });
     }
 
