@@ -773,27 +773,39 @@ async function buildLeaderboardImage(guild, topRows) {
 
     // Template mode: use uploaded asset as full background and only place dynamic stats/avatar text.
     if (templateImg) {
-    const width = 2000;
-    const height = 1200;
+    const width = templateImg.width;
+    const height = templateImg.height;
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext("2d");
 
     ctx.drawImage(templateImg, 0, 0, width, height);
 
+    const sx = width / 1536;
+    const sy = height / 1024;
+    const scaleX = (n) => Math.round(n * sx);
+    const scaleY = (n) => Math.round(n * sy);
+    const scaleU = (n) => Math.round(n * Math.min(sx, sy));
+
     if (rows.length === 0) {
       ctx.fillStyle = "#ffe5bf";
-      ctx.font = '700 64px "Orbitron", "Inter", "Segoe UI", sans-serif';
+      ctx.font = `700 ${Math.max(24, scaleU(54))}px "Orbitron", "Inter", "Segoe UI", sans-serif`;
       const txt = "No helper data yet";
-      ctx.fillText(txt, (width - ctx.measureText(txt).width) / 2, 620);
+      ctx.fillText(txt, (width - ctx.measureText(txt).width) / 2, scaleY(560));
       return canvas.toBuffer("image/png");
     }
 
     const first = rows[0];
     const centerX = Math.round(width / 2);
-    const centerY = 470;
+    const centerY = scaleY(390);
 
-    const heroBox = { x: 250, y: 360, w: 1500, h: 420 };
-    const topAvatarSize = 250;
+    const heroBox = {
+      x: scaleX(160),
+      y: scaleY(220),
+      w: scaleX(1216),
+      h: scaleY(360),
+    };
+
+    const topAvatarSize = scaleU(220);
     const topAvatarX = Math.round(centerX - topAvatarSize / 2);
     const topAvatarY = Math.round(centerY - topAvatarSize / 2);
 
@@ -806,27 +818,27 @@ async function buildLeaderboardImage(guild, topRows) {
     });
 
     const topRadius = Math.round(topAvatarSize / 2);
-    const usernameY = centerY + topRadius + 60;
+    const usernameY = centerY + topRadius + scaleY(38);
 
     ctx.fillStyle = "#ffe5c1";
-    ctx.font = '700 75px "Orbitron", "Inter", "Segoe UI", sans-serif';
-    const topName = fitText(ctx, `#1 ${String(first.name || "Unknown")}`.toUpperCase(), 1200);
+    ctx.font = `700 ${Math.max(30, scaleU(56))}px "Orbitron", "Inter", "Segoe UI", sans-serif`;
+    const topName = fitText(ctx, `#1 ${String(first.name || "Unknown")}`.toUpperCase(), scaleX(900));
     ctx.fillText(topName, (width - ctx.measureText(topName).width) / 2, usernameY);
 
     const ratingNum = typeof first.rating === "number" ? first.rating : null;
     const ratingLabel = ratingNum !== null ? `${ratingNum.toFixed(2)}/5` : "No rating";
     const ticketsLine = `${first.tickets} Tickets  |  ${ratingLabel}`;
-    ctx.font = '600 50px "Orbitron", "Inter", "Segoe UI", sans-serif';
+    ctx.font = `600 ${Math.max(22, scaleU(36))}px "Orbitron", "Inter", "Segoe UI", sans-serif`;
     ctx.fillStyle = "#ffd9ac";
-    const ticketsY = usernameY + 64;
-    const ticketsSafe = fitText(ctx, ticketsLine, 1100);
+    const ticketsY = usernameY + scaleY(52);
+    const ticketsSafe = fitText(ctx, ticketsLine, scaleX(860));
     ctx.fillText(ticketsSafe, (width - ctx.measureText(ticketsSafe).width) / 2, ticketsY);
 
     if (ratingNum !== null) {
       const full = Math.max(0, Math.min(5, Math.round(ratingNum)));
-      const starY = ticketsY + 58;
-      const starFontPx = 48;
-      const gap = 8;
+      const starY = ticketsY + scaleY(44);
+      const starFontPx = Math.max(24, scaleU(38));
+      const gap = Math.max(5, scaleU(6));
       const starW = starFontPx;
       const totalW = 5 * starW + 4 * gap;
       let x = Math.round(centerX - totalW / 2);
@@ -838,24 +850,24 @@ async function buildLeaderboardImage(guild, topRows) {
       }
     }
 
-    roundedRectPath(ctx, heroBox.x, heroBox.y, heroBox.w, heroBox.h, 24);
+    roundedRectPath(ctx, heroBox.x, heroBox.y, heroBox.w, heroBox.h, scaleU(24));
     ctx.strokeStyle = "rgba(255, 190, 110, 0.20)";
-    ctx.lineWidth = 2;
+    ctx.lineWidth = Math.max(1.5, scaleU(2));
     ctx.stroke();
 
     const cards = [
-      { rank: 2, x: 250, y: 820, w: 820, h: 220, avatar: 115, nameFont: 48, statFont: 36 },
-      { rank: 3, x: 1130, y: 820, w: 820, h: 220, avatar: 115, nameFont: 48, statFont: 36 },
-      { rank: 4, x: 250, y: 1040, w: 820, h: 180, avatar: 95, nameFont: 36, statFont: 28 },
-      { rank: 5, x: 1130, y: 1040, w: 820, h: 180, avatar: 95, nameFont: 36, statFont: 28 },
+      { rank: 2, x: scaleX(150), y: scaleY(700), w: scaleX(610), h: scaleY(95), avatar: scaleU(82), nameFont: scaleU(50), statFont: scaleU(34) },
+      { rank: 3, x: scaleX(776), y: scaleY(700), w: scaleX(610), h: scaleY(95), avatar: scaleU(82), nameFont: scaleU(50), statFont: scaleU(34) },
+      { rank: 4, x: scaleX(150), y: scaleY(815), w: scaleX(610), h: scaleY(95), avatar: scaleU(82), nameFont: scaleU(46), statFont: scaleU(30) },
+      { rank: 5, x: scaleX(776), y: scaleY(815), w: scaleX(610), h: scaleY(95), avatar: scaleU(82), nameFont: scaleU(46), statFont: scaleU(30) },
     ];
 
     for (const card of cards) {
       const row = rows[card.rank - 1];
       if (!row) continue;
 
-      const avatarSize = Math.max(18, card.avatar);
-      const avatarX = card.x + 24;
+      const avatarSize = Math.max(24, card.avatar);
+      const avatarX = card.x + scaleX(16);
       const avatarY = card.y + Math.round((card.h - avatarSize) / 2);
       await drawNeonAvatar(ctx, row.avatarUrl, avatarX, avatarY, avatarSize, {
         outerStroke: "#ffc976",
@@ -865,13 +877,13 @@ async function buildLeaderboardImage(guild, topRows) {
         outerLineWidth: 2.6,
       });
 
-      const textX = avatarX + avatarSize + 24;
-      const maxTextW = card.w - (textX - card.x) - 26;
+      const textX = avatarX + avatarSize + scaleX(16);
+      const maxTextW = card.w - (textX - card.x) - scaleX(16);
 
       ctx.fillStyle = "#ffe8c9";
-      ctx.font = `700 ${Math.max(14, card.nameFont)}px "Orbitron", "Inter", "Segoe UI", sans-serif`;
+      ctx.font = `700 ${Math.max(16, card.nameFont)}px "Orbitron", "Inter", "Segoe UI", sans-serif`;
       const line1 = fitText(ctx, `#${card.rank} ${String(row.name || "Unknown")}`, maxTextW);
-      ctx.fillText(line1, textX, card.y + (card.h >= 200 ? 94 : 74));
+      ctx.fillText(line1, textX, card.y + scaleY(48));
 
       const rrn = typeof row.rating === "number" ? row.rating : null;
       const rrLabel = rrn !== null ? `${rrn.toFixed(2)}/5` : "No rating";
@@ -881,14 +893,13 @@ async function buildLeaderboardImage(guild, topRows) {
         : `${row.tickets} Tickets  |  ${rrLabel}`;
 
       ctx.fillStyle = "#ffd9ae";
-      ctx.font = `600 ${Math.max(11, card.statFont)}px "Orbitron", "Inter", "Segoe UI", sans-serif`;
+      ctx.font = `600 ${Math.max(12, card.statFont)}px "Orbitron", "Inter", "Segoe UI", sans-serif`;
       const line2 = fitText(ctx, line2Raw, maxTextW);
-      ctx.fillText(line2, textX, card.y + (card.h >= 200 ? 162 : 132));
+      ctx.fillText(line2, textX, card.y + scaleY(86));
     }
 
     return canvas.toBuffer("image/png");
   }
-
   // Fallback mode (when no template exists)
   const width = 1600;
   const extraRows = Math.max(0, rows.length - 1);
@@ -2697,6 +2708,7 @@ if (!BOT_TOKEN) {
   throw new Error("Missing bot token. Set DISCORD_TOKEN or BOT_TOKEN in .env");
 }
 client.login(BOT_TOKEN);
+
 
 
 
