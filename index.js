@@ -797,44 +797,52 @@ async function buildLeaderboardImage(guild, topRows) {
     });
 
     ctx.fillStyle = "#ffe5c1";
-    ctx.font = `700 ${Math.max(18, Math.floor(width * 0.038))}px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif`;
+    ctx.font = `700 ${Math.max(18, Math.floor(width * 0.026))}px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif`;
     const topName = fitText(ctx, `#1 ${String(first.name || "Unknown")}`.toUpperCase(), Math.floor(width * 0.78));
     ctx.fillText(topName, (width - ctx.measureText(topName).width) / 2, Math.floor(height * 0.595));
 
     const topRating = typeof first.rating === "number" ? `${first.rating.toFixed(2)}/5 ${starsFromRating(first.rating)}` : "No rating";
     const topMeta = `${first.tickets} Tickets   •   ${topRating}`;
-    ctx.font = `600 ${Math.max(13, Math.floor(width * 0.03))}px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif`;
+    ctx.font = `600 ${Math.max(13, Math.floor(width * 0.02))}px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif`;
     ctx.fillStyle = "#ffd9ac";
     const topMetaSafe = fitText(ctx, topMeta, Math.floor(width * 0.8));
     ctx.fillText(topMetaSafe, (width - ctx.measureText(topMetaSafe).width) / 2, Math.floor(height * 0.655));
 
-    const listStartY = Math.floor(height * 0.73);
-    const rowGap = Math.floor(height * 0.085);
-    const rowAvatar = Math.max(20, Math.floor(width * 0.075));
-    const rowAvatarX = Math.floor(width * 0.07);
-    const rowTextX = rowAvatarX + rowAvatar + Math.floor(width * 0.035);
+        const listStartY = Math.floor(height * 0.735);
+    const rowGap = Math.floor(height * 0.108);
+    const colLeftX = Math.floor(width * 0.08);
+    const colRightX = Math.floor(width * 0.54);
+    const colTextMax = Math.floor(width * 0.34);
+    const rowAvatar = Math.max(18, Math.floor(width * 0.062));
 
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i];
-      const y = listStartY + (i - 1) * rowGap;
-      if (y > height - Math.floor(height * 0.04)) break;
+      const idx = i - 1;
+      const col = idx % 2;
+      const rowIdx = Math.floor(idx / 2);
+      const baseX = col === 0 ? colLeftX : colRightX;
+      const y = listStartY + rowIdx * rowGap;
+      if (y > height - Math.floor(height * 0.05)) break;
 
-      await drawNeonAvatar(ctx, row.avatarUrl, rowAvatarX, y - Math.floor(rowAvatar * 0.75), rowAvatar, {
+      const avatarY = y - Math.floor(rowAvatar * 0.72);
+      await drawNeonAvatar(ctx, row.avatarUrl, baseX, avatarY, rowAvatar, {
         outerStroke: "#ffc976",
-        outerGlow: "rgba(255,194,112,0.82)",
-        innerGlow: "rgba(255,248,225,0.62)",
+        outerGlow: "rgba(255,194,112,0.8)",
+        innerGlow: "rgba(255,248,225,0.6)",
       });
 
-      ctx.font = `700 ${Math.max(12, Math.floor(width * 0.03))}px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif`;
+      const textX = baseX + rowAvatar + Math.floor(width * 0.016);
+      ctx.font = `700 ${Math.max(10, Math.floor(width * 0.02))}px "Orbitron", "Inter", "Segoe UI", sans-serif`;
       ctx.fillStyle = "#ffe8c9";
-      const n = fitText(ctx, `#${i + 1} ${String(row.name || "Unknown")}`, Math.floor(width * 0.58));
-      ctx.fillText(n, rowTextX, y - Math.floor(height * 0.008));
+      const line1 = fitText(ctx, `#${i + 1} ${String(row.name || "Unknown")}`, colTextMax);
+      ctx.fillText(line1, textX, y - Math.floor(height * 0.008));
 
       const rr = typeof row.rating === "number" ? `${row.rating.toFixed(2)}/5 ${starsFromRating(row.rating)}` : "No rating";
-      const line2 = `${row.tickets} Tickets   •   ${rr}`;
-      ctx.font = `600 ${Math.max(10, Math.floor(width * 0.024))}px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif`;
+      const line2Raw = `${row.tickets} Tickets   •   ${rr}`;
+      ctx.font = `600 ${Math.max(9, Math.floor(width * 0.015))}px "Orbitron", "Inter", "Segoe UI", sans-serif`;
       ctx.fillStyle = "#ffd9ae";
-      ctx.fillText(fitText(ctx, line2, Math.floor(width * 0.58)), rowTextX, y + Math.floor(height * 0.03));
+      const line2 = fitText(ctx, line2Raw, colTextMax);
+      ctx.fillText(line2, textX, y + Math.floor(height * 0.028));
     }
 
     return canvas.toBuffer("image/png");
@@ -2648,6 +2656,8 @@ if (!BOT_TOKEN) {
   throw new Error("Missing bot token. Set DISCORD_TOKEN or BOT_TOKEN in .env");
 }
 client.login(BOT_TOKEN);
+
+
 
 
 
