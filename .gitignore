@@ -2,7 +2,8 @@ node_modules/
 .env
 .env.*
 *.zip
-data/*.lockassets/cache/avatars/*
+data/*.lock
+assets/cache/avatars/*
 !assets/cache/avatars/.gitkeep
 assets/output/*
 !assets/output/.gitkeep
