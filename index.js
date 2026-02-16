@@ -1,4 +1,4 @@
-"use strict";
+﻿"use strict";
 
 const fs = require("fs");
 const path = require("path");
@@ -428,16 +428,16 @@ async function refreshLeaderboardStateFromSupabase() {
 }
 
 function inlineBox(text) {
-  const s = String(text ?? "").replace(/`/g, "ˋ");
+  const s = String(text ?? "").replace(/`/g, "Ë‹");
   return `\`${s}\``;
 }
 function box(text, lang = "") {
-  const s = String(text ?? "").replace(/```/g, "ˋˋˋ");
+  const s = String(text ?? "").replace(/```/g, "Ë‹Ë‹Ë‹");
   return `\`\`\`${lang}\n${s}\n\`\`\``;
 }
 function clamp(str, n) {
   const s = String(str ?? "");
-  return s.length > n ? s.slice(0, n - 1) + "…" : s;
+  return s.length > n ? s.slice(0, n - 1) + "â€¦" : s;
 }
 
 const GAME_HELPER_ROLES = { ...FORCED_HELPER_ROLES };
@@ -772,33 +772,28 @@ async function buildLeaderboardImage(guild, topRows) {
   }
 
     // Template mode: use uploaded asset as full background and only place dynamic stats/avatar text.
-  if (templateImg) {
-    const width = templateImg.width;
-    const height = templateImg.height;
+    if (templateImg) {
+    const width = 2000;
+    const height = 1200;
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext("2d");
-
-    const s = Math.min(width / 2000, height / 1200);
-    const scale = (n) => Math.round(n * s);
 
     ctx.drawImage(templateImg, 0, 0, width, height);
 
     if (rows.length === 0) {
       ctx.fillStyle = "#ffe5bf";
-      ctx.font = `700 ${Math.max(18, scale(64))}px "Orbitron", "Inter", "Segoe UI", sans-serif`;
+      ctx.font = '700 64px "Orbitron", "Inter", "Segoe UI", sans-serif';
       const txt = "No helper data yet";
-      ctx.fillText(txt, (width - ctx.measureText(txt).width) / 2, scale(620));
+      ctx.fillText(txt, (width - ctx.measureText(txt).width) / 2, 620);
       return canvas.toBuffer("image/png");
     }
 
     const first = rows[0];
     const centerX = Math.round(width / 2);
-    const centerY = scale(470); // requested +40 down fix
+    const centerY = 470;
 
-    // Requested main spotlight area anchor (for layout math)
-    const heroBox = { x: scale(250), y: scale(360), w: scale(1500), h: scale(420) };
-
-    const topAvatarSize = Math.max(80, scale(250)); // 260 - 10 requested
+    const heroBox = { x: 250, y: 360, w: 1500, h: 420 };
+    const topAvatarSize = 250;
     const topAvatarX = Math.round(centerX - topAvatarSize / 2);
     const topAvatarY = Math.round(centerY - topAvatarSize / 2);
 
@@ -811,44 +806,48 @@ async function buildLeaderboardImage(guild, topRows) {
     });
 
     const topRadius = Math.round(topAvatarSize / 2);
-    const usernameY = centerY + topRadius + scale(60); // requested spacing
+    const usernameY = centerY + topRadius + 60;
 
     ctx.fillStyle = "#ffe5c1";
-    ctx.font = `700 ${Math.max(20, scale(75))}px "Orbitron", "Inter", "Segoe UI", sans-serif`;
-    const topName = fitText(ctx, `#1 ${String(first.name || "Unknown")}`.toUpperCase(), scale(1200));
+    ctx.font = '700 75px "Orbitron", "Inter", "Segoe UI", sans-serif';
+    const topName = fitText(ctx, `#1 ${String(first.name || "Unknown")}`.toUpperCase(), 1200);
     ctx.fillText(topName, (width - ctx.measureText(topName).width) / 2, usernameY);
 
     const ratingNum = typeof first.rating === "number" ? first.rating : null;
     const ratingLabel = ratingNum !== null ? `${ratingNum.toFixed(2)}/5` : "No rating";
     const ticketsLine = `${first.tickets} Tickets  |  ${ratingLabel}`;
-    ctx.font = `600 ${Math.max(16, scale(50))}px "Orbitron", "Inter", "Segoe UI", sans-serif`;
+    ctx.font = '600 50px "Orbitron", "Inter", "Segoe UI", sans-serif';
     ctx.fillStyle = "#ffd9ac";
-    const ticketsY = usernameY + scale(64);
-    const ticketsSafe = fitText(ctx, ticketsLine, scale(1100));
+    const ticketsY = usernameY + 64;
+    const ticketsSafe = fitText(ctx, ticketsLine, 1100);
     ctx.fillText(ticketsSafe, (width - ctx.measureText(ticketsSafe).width) / 2, ticketsY);
 
-    // mathematically centered stars
     if (ratingNum !== null) {
       const full = Math.max(0, Math.min(5, Math.round(ratingNum)));
-      const starY = ticketsY + scale(58); // +10 lower requested
-      const starFontPx = Math.max(18, scale(48));
-      const gap = Math.max(4, scale(8));
+      const starY = ticketsY + 58;
+      const starFontPx = 48;
+      const gap = 8;
       const starW = starFontPx;
       const totalW = 5 * starW + 4 * gap;
-      let x = Math.round(width / 2 - totalW / 2);
+      let x = Math.round(centerX - totalW / 2);
       for (let i = 0; i < 5; i++) {
         ctx.font = `700 ${starFontPx}px "Segoe UI Emoji", "Segoe UI Symbol", "Inter", sans-serif`;
         ctx.fillStyle = i < full ? "#ffd27a" : "rgba(255,240,215,0.55)";
-        ctx.fillText("?", x, starY);
+        ctx.fillText(i < full ? "★" : "☆", x, starY);
         x += starW + gap;
       }
     }
 
+    roundedRectPath(ctx, heroBox.x, heroBox.y, heroBox.w, heroBox.h, 24);
+    ctx.strokeStyle = "rgba(255, 190, 110, 0.20)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
     const cards = [
-      { rank: 2, x: scale(250), y: scale(820), w: scale(820), h: scale(220), avatar: scale(115), nameFont: scale(48), statFont: scale(36) },
-      { rank: 3, x: scale(1130), y: scale(820), w: scale(820), h: scale(220), avatar: scale(115), nameFont: scale(48), statFont: scale(36) },
-      { rank: 4, x: scale(250), y: scale(1040), w: scale(820), h: scale(180), avatar: scale(95), nameFont: scale(36), statFont: scale(28) },
-      { rank: 5, x: scale(1130), y: scale(1040), w: scale(820), h: scale(180), avatar: scale(95), nameFont: scale(36), statFont: scale(28) },
+      { rank: 2, x: 250, y: 820, w: 820, h: 220, avatar: 115, nameFont: 48, statFont: 36 },
+      { rank: 3, x: 1130, y: 820, w: 820, h: 220, avatar: 115, nameFont: 48, statFont: 36 },
+      { rank: 4, x: 250, y: 1040, w: 820, h: 180, avatar: 95, nameFont: 36, statFont: 28 },
+      { rank: 5, x: 1130, y: 1040, w: 820, h: 180, avatar: 95, nameFont: 36, statFont: 28 },
     ];
 
     for (const card of cards) {
@@ -856,7 +855,7 @@ async function buildLeaderboardImage(guild, topRows) {
       if (!row) continue;
 
       const avatarSize = Math.max(18, card.avatar);
-      const avatarX = card.x + scale(24);
+      const avatarX = card.x + 24;
       const avatarY = card.y + Math.round((card.h - avatarSize) / 2);
       await drawNeonAvatar(ctx, row.avatarUrl, avatarX, avatarY, avatarSize, {
         outerStroke: "#ffc976",
@@ -866,13 +865,13 @@ async function buildLeaderboardImage(guild, topRows) {
         outerLineWidth: 2.6,
       });
 
-      const textX = avatarX + avatarSize + scale(24);
-      const maxTextW = card.w - (textX - card.x) - scale(26);
+      const textX = avatarX + avatarSize + 24;
+      const maxTextW = card.w - (textX - card.x) - 26;
 
       ctx.fillStyle = "#ffe8c9";
-      ctx.font = `700 ${Math.max(14, card.nameFont)}px "Inter", "Segoe UI", sans-serif`;
+      ctx.font = `700 ${Math.max(14, card.nameFont)}px "Orbitron", "Inter", "Segoe UI", sans-serif`;
       const line1 = fitText(ctx, `#${card.rank} ${String(row.name || "Unknown")}`, maxTextW);
-      ctx.fillText(line1, textX, card.y + scale(card.h >= scale(200) ? 94 : 74));
+      ctx.fillText(line1, textX, card.y + (card.h >= 200 ? 94 : 74));
 
       const rrn = typeof row.rating === "number" ? row.rating : null;
       const rrLabel = rrn !== null ? `${rrn.toFixed(2)}/5` : "No rating";
@@ -882,9 +881,9 @@ async function buildLeaderboardImage(guild, topRows) {
         : `${row.tickets} Tickets  |  ${rrLabel}`;
 
       ctx.fillStyle = "#ffd9ae";
-      ctx.font = `600 ${Math.max(11, card.statFont)}px "Inter", "Segoe UI", sans-serif`;
+      ctx.font = `600 ${Math.max(11, card.statFont)}px "Orbitron", "Inter", "Segoe UI", sans-serif`;
       const line2 = fitText(ctx, line2Raw, maxTextW);
-      ctx.fillText(line2, textX, card.y + scale(card.h >= scale(200) ? 162 : 132));
+      ctx.fillText(line2, textX, card.y + (card.h >= 200 ? 162 : 132));
     }
 
     return canvas.toBuffer("image/png");
@@ -958,7 +957,7 @@ async function buildLeaderboardImage(guild, topRows) {
     const rr = typeof row.rating === "number" ? `${row.rating.toFixed(2)}/5 ${starsFromRating(row.rating)}` : "No rating";
     ctx.font = "500 40px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif";
     ctx.fillStyle = "#f8d7b0";
-    ctx.fillText(fitText(ctx, `${row.tickets} Tickets   �   ${rr}`, 860), 294, y + 92);
+    ctx.fillText(fitText(ctx, `${row.tickets} Tickets   •   ${rr}`, 860), 294, y + 92);
   }
 
   return canvas.toBuffer("image/png");
@@ -2036,7 +2035,7 @@ async function buildVouchImage({
   return canvas.toBuffer("image/png");
 }
 /* ===================== READY + MSG COUNT ===================== */
-client.once(Events.ClientReady, () => console.log(`✅ Logged in as ${client.user.tag}`));
+client.once(Events.ClientReady, () => console.log(`âœ… Logged in as ${client.user.tag}`));
 client.on("error", (e) => console.error("Client error:", e?.message || e));
 
 client.on(Events.MessageCreate, (message) => {
@@ -2150,12 +2149,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
     if (cmd === "createembed1") {
       const isOwner = String(interaction.user.id) === String(config.ownerId || "");
       if (!isOwner && !interaction.memberPermissions?.has(PermissionsBitField.Flags.Administrator)) {
-        return safeReply(interaction, { content: "⛔ Admin only." });
+        return safeReply(interaction, { content: "â›” Admin only." });
       }
       const removed = await cleanupOldPanels(interaction.channel, client.user?.id);
       await interaction.channel.send(buildMainPanelPayload());
       return safeReply(interaction, {
-        content: removed > 0 ? `✅ Panel sent. Removed ${removed} old panel message(s).` : "✅ Panel sent.",
+        content: removed > 0 ? `âœ… Panel sent. Removed ${removed} old panel message(s).` : "âœ… Panel sent.",
       });
     }
 
@@ -2165,7 +2164,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       }
       const embed = new EmbedBuilder()
         .setColor(TICKET_EMBED_COLOR)
-        .setTitle("🛒 VIP Shop")
+        .setTitle("ðŸ›’ VIP Shop")
         .setDescription("Choose a payment option:");
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel("Buy with Robux").setURL(s.robuxLink),
@@ -2245,10 +2244,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
     if (interaction?.isRepliable?.()) {
       try {
         if (interaction.deferred || interaction.replied) {
-          await interaction.editReply({ content: "❌ Error occurred. Check bot logs." });
+          await interaction.editReply({ content: "âŒ Error occurred. Check bot logs." });
         } else {
           await interaction.reply({
-            content: "❌ Error occurred. Check bot logs.",
+            content: "âŒ Error occurred. Check bot logs.",
             flags: MessageFlags.Ephemeral,
           });
         }
@@ -2275,7 +2274,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       if (value === "carry") return interaction.reply(buildGameSelectorPayload("carry"));
       if (value === "helper") return interaction.reply(buildGameSelectorPayload("helper"));
       return interaction.reply({
-        content: "❌ Invalid selection.",
+        content: "âŒ Invalid selection.",
         flags: MessageFlags.Ephemeral,
       });
     }
@@ -2283,7 +2282,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const game = interaction.values?.[0];
       if (!GAMES.some((g) => g.value === game)) {
         return interaction.reply({
-          content: "❌ Invalid selection.",
+          content: "âŒ Invalid selection.",
           flags: MessageFlags.Ephemeral,
         });
       }
@@ -2698,6 +2697,7 @@ if (!BOT_TOKEN) {
   throw new Error("Missing bot token. Set DISCORD_TOKEN or BOT_TOKEN in .env");
 }
 client.login(BOT_TOKEN);
+
 
 
 
