@@ -808,41 +808,40 @@ async function buildLeaderboardImage(guild, topRows) {
     const topMetaSafe = fitText(ctx, topMeta, Math.floor(width * 0.8));
     ctx.fillText(topMetaSafe, (width - ctx.measureText(topMetaSafe).width) / 2, Math.floor(height * 0.655));
 
-        const listStartY = Math.floor(height * 0.735);
+            const listStartY = Math.floor(height * 0.695);
     const rowGap = Math.floor(height * 0.108);
-    const colLeftX = Math.floor(width * 0.08);
-    const colRightX = Math.floor(width * 0.54);
-    const colTextMax = Math.floor(width * 0.34);
+    const colLeftX = Math.floor(width * 0.145);
+    const colRightX = Math.floor(width * 0.62);
+    const colTextMax = Math.floor(width * 0.26);
     const rowAvatar = Math.max(18, Math.floor(width * 0.062));
 
-    for (let i = 1; i < rows.length; i++) {
-      const row = rows[i];
-      const idx = i - 1;
-      const col = idx % 2;
-      const rowIdx = Math.floor(idx / 2);
+    const gridRows = rows.slice(1, 5); // #2 - #5 only, fits the template boxes
+    for (let i = 0; i < gridRows.length; i++) {
+      const row = gridRows[i];
+      const col = i % 2;
+      const rowIdx = Math.floor(i / 2);
       const baseX = col === 0 ? colLeftX : colRightX;
       const y = listStartY + rowIdx * rowGap;
-      if (y > height - Math.floor(height * 0.05)) break;
 
-      const avatarY = y - Math.floor(rowAvatar * 0.72);
+      const avatarY = y - Math.floor(rowAvatar * 0.66);
       await drawNeonAvatar(ctx, row.avatarUrl, baseX, avatarY, rowAvatar, {
         outerStroke: "#ffc976",
         outerGlow: "rgba(255,194,112,0.8)",
         innerGlow: "rgba(255,248,225,0.6)",
       });
 
-      const textX = baseX + rowAvatar + Math.floor(width * 0.016);
-      ctx.font = `700 ${Math.max(10, Math.floor(width * 0.02))}px "Orbitron", "Inter", "Segoe UI", sans-serif`;
+      const textX = baseX + rowAvatar + Math.floor(width * 0.014);
+      ctx.font = `700 ${Math.max(10, Math.floor(width * 0.021))}px "Inter", "Segoe UI", sans-serif`;
       ctx.fillStyle = "#ffe8c9";
-      const line1 = fitText(ctx, `#${i + 1} ${String(row.name || "Unknown")}`, colTextMax);
-      ctx.fillText(line1, textX, y - Math.floor(height * 0.008));
+      const line1 = fitText(ctx, `#${i + 2} ${String(row.name || "Unknown")}`, colTextMax);
+      ctx.fillText(line1, textX, y - Math.floor(height * 0.004));
 
       const rr = typeof row.rating === "number" ? `${row.rating.toFixed(2)}/5 ${starsFromRating(row.rating)}` : "No rating";
       const line2Raw = `${row.tickets} Tickets   •   ${rr}`;
-      ctx.font = `600 ${Math.max(9, Math.floor(width * 0.015))}px "Orbitron", "Inter", "Segoe UI", sans-serif`;
+      ctx.font = `600 ${Math.max(9, Math.floor(width * 0.015))}px "Inter", "Segoe UI", sans-serif`;
       ctx.fillStyle = "#ffd9ae";
       const line2 = fitText(ctx, line2Raw, colTextMax);
-      ctx.fillText(line2, textX, y + Math.floor(height * 0.028));
+      ctx.fillText(line2, textX, y + Math.floor(height * 0.034));
     }
 
     return canvas.toBuffer("image/png");
@@ -2656,6 +2655,7 @@ if (!BOT_TOKEN) {
   throw new Error("Missing bot token. Set DISCORD_TOKEN or BOT_TOKEN in .env");
 }
 client.login(BOT_TOKEN);
+
 
 
 
