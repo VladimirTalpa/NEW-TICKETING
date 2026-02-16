@@ -1,0 +1,26 @@
+# fly.toml app configuration file generated for new-ticketing on 2026-02-16T12:27:28+01:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'new-ticketing'
+primary_region = 'fra'
+kill_signal = 'SIGINT'
+kill_timeout = '30s'
+
+[experimental]
+  auto_rollback = true
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[env]
+  NODE_ENV = 'production'
+
+[processes]
+  app = 'node index.js'
+
+[[vm]]
+  memory = '256mb'
+  cpus = 1
+  memory_mb = 256

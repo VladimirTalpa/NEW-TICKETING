@@ -29,7 +29,7 @@ const {
   TextInputBuilder,
   TextInputStyle,
 } = require("discord.js");
-const { createCanvas, loadImage } = require("@napi-rs/canvas");
+const { createCanvas, loadImage, GlobalFonts } = require("@napi-rs/canvas");
 
 const config = require("./config.json");
 const BOT_TOKEN = process.env.DISCORD_TOKEN || process.env.BOT_TOKEN || "";
@@ -71,6 +71,26 @@ const client = new Client({
   intents,
   partials: [Partials.Channel],
 });
+function registerCanvasFonts() {
+  const fontDir = path.join(__dirname, "assets", "fonts");
+  const fonts = [
+    { file: "Orbitron-Bold.ttf", family: "Orbitron" },
+    { file: "Inter-Regular.ttf", family: "Inter" },
+  ];
+  for (const f of fonts) {
+    const full = path.join(fontDir, f.file);
+    if (!fs.existsSync(full)) {
+      console.warn(`Font not found: ${full}`);
+      continue;
+    }
+    try {
+      GlobalFonts.registerFromPath(full, f.family);
+      console.log(`Font loaded: ${f.family}`);
+    } catch (e) {
+      console.warn(`Font load failed (${f.family}):`, e?.message || e);
+    }
+  }
+}
 
 process.on("unhandledRejection", (reason) => {
   console.error("UNHANDLED REJECTION:", reason);
@@ -211,6 +231,7 @@ function setupSingleInstanceLock() {
 }
 
 setupSingleInstanceLock();
+registerCanvasFonts();
 
 const TICKETS_STATE_PATH = path.join(DATA_DIR, "tickets_state.json");
 const HELPERS_PATH = path.join(DATA_DIR, "helpers.json");
@@ -631,17 +652,16 @@ async function drawNeonAvatar(ctx, avatarUrl, x, y, size, opts = {}) {
 function drawAvatarOrbit(ctx, cx, cy, baseRadius, opts = {}) {
   const main = opts.main || "rgba(255,255,255,0.92)";
   const alt = opts.alt || "rgba(255,56,56,0.9)";
-  const count = opts.count || 3;
+  const count = opts.count || 2;
   for (let i = 0; i < count; i++) {
-    const radius = baseRadius + i * 8;
+    const radius = baseRadius + i * 7;
     ctx.save();
     ctx.strokeStyle = i % 2 === 0 ? main : alt;
-    ctx.lineWidth = i === 0 ? 2 : 1.6;
+    ctx.lineWidth = i === 0 ? 1.8 : 1.4;
     ctx.shadowColor = i % 2 === 0 ? "rgba(255,255,255,0.65)" : "rgba(255,56,56,0.72)";
-    ctx.shadowBlur = 12 + i * 4;
-    if (i === 2) ctx.setLineDash([8, 8]);
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius, Math.PI * (0.12 + i * 0.08), Math.PI * (1.96 - i * 0.05));
+    ctx.shadowBlur = 10 + i * 3;
+        ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
   }
@@ -656,10 +676,10 @@ async function buildLeaderboardImage(guild, topRows) {
   const padding = 34;
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext("2d");
-  const FONT_TITLE = "700 56px \"Bahnschrift\", \"Trebuchet MS\", \"Segoe UI\", sans-serif";
-  const FONT_SUB = "500 24px \"Bahnschrift\", \"Trebuchet MS\", \"Segoe UI\", sans-serif";
-  const FONT_ROW_MAIN = "700 47px \"Bahnschrift\", \"Trebuchet MS\", \"Segoe UI\", sans-serif";
-  const FONT_ROW_META = "700 33px \"Bahnschrift\", \"Trebuchet MS\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", sans-serif";
+  const FONT_TITLE = "700 56px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif";
+  const FONT_SUB = "500 24px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif";
+  const FONT_ROW_MAIN = "700 47px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif";
+  const FONT_ROW_META = "700 33px \"Orbitron\", \"Inter\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", sans-serif";
 
   const bg = ctx.createLinearGradient(0, 0, width, height);
   bg.addColorStop(0, "#050505");
@@ -750,7 +770,7 @@ async function buildLeaderboardImage(guild, topRows) {
       text: `#${i + 1}`,
       x: rankX,
       y: y + 58,
-      font: "700 39px \"Bahnschrift\", \"Trebuchet MS\", \"Segoe UI\", sans-serif",
+      font: "700 39px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif",
       color: "#f6f6f6",
       iconSize: 22,
       gap: 8,
@@ -799,7 +819,7 @@ async function buildLeaderboardImage(guild, topRows) {
     ctx.lineWidth = 1.5;
     ctx.stroke();
     ctx.fillStyle = "#ececec";
-    ctx.font = "600 34px \"Bahnschrift\", \"Trebuchet MS\", \"Segoe UI\", sans-serif";
+    ctx.font = "600 34px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif";
     ctx.fillText("No helper data yet.", padding + 14, headerH + 94);
   }
 
@@ -846,10 +866,10 @@ async function buildProfileImage(user, rec) {
   const rightX = 420;
   const rightW = 740;
 
-  ctx.font = "700 56px \"Bahnschrift\", \"Trebuchet MS\", \"Segoe UI\", sans-serif";
+  ctx.font = "700 56px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif";
   ctx.fillStyle = "#ffffff";
   ctx.fillText("Helper Profile", leftX, 92);
-  ctx.font = "500 30px \"Bahnschrift\", \"Trebuchet MS\", \"Segoe UI\", sans-serif";
+  ctx.font = "500 30px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif";
   ctx.fillStyle = "#dfdfdf";
   ctx.fillText(fitText(ctx, userTag, leftW), leftX, 130);
 
@@ -880,7 +900,7 @@ async function buildProfileImage(user, rec) {
     text: fitText(ctx, String(user?.username || "User"), 230),
     x: leftX + 18,
     y: 482,
-    font: "700 38px \"Bahnschrift\", \"Trebuchet MS\", \"Segoe UI\", sans-serif",
+    font: "700 38px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif",
     color: "#ffffff",
     iconSize: 30,
     gap: 10,
@@ -892,7 +912,7 @@ async function buildProfileImage(user, rec) {
   ctx.lineWidth = 1.3;
   ctx.stroke();
   ctx.fillStyle = "#f3f3f3";
-  ctx.font = "700 26px \"Bahnschrift\", \"Trebuchet MS\", \"Segoe UI\", sans-serif";
+  ctx.font = "700 26px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif";
   ctx.fillText(statusLabel, leftX + 90, 548);
 
   roundedRectPath(ctx, rightX, 108, rightW, 560, 20);
@@ -907,7 +927,7 @@ async function buildProfileImage(user, rec) {
   ctx.stroke();
 
   ctx.fillStyle = "#ffffff";
-  ctx.font = "700 52px \"Bahnschrift\", \"Trebuchet MS\", \"Segoe UI\", sans-serif";
+  ctx.font = "700 52px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif";
   ctx.fillText("Overview", rightX + 24, 170);
 
   async function drawStatBox(x, y, w, h, emojiId, label, value) {
@@ -922,12 +942,12 @@ async function buildProfileImage(user, rec) {
       text: label,
       x: x + 14,
       y: y + 32,
-      font: "600 28px \"Bahnschrift\", \"Trebuchet MS\", \"Segoe UI\", sans-serif",
+      font: "600 28px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif",
       color: "#efefef",
       iconSize: 22,
       gap: 8,
     });
-    ctx.font = "700 41px \"Bahnschrift\", \"Trebuchet MS\", \"Segoe UI\", sans-serif";
+    ctx.font = "700 41px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif";
     ctx.fillStyle = "#ffffff";
     ctx.fillText(fitText(ctx, String(value), w - 28), x + 16, y + 84);
   }
@@ -955,17 +975,17 @@ async function buildProfileImage(user, rec) {
     text: `Votes: ${ratingCount}`,
     x: rightX + 34,
     y: r2 + boxH + 48,
-    font: "600 34px \"Bahnschrift\", \"Trebuchet MS\", \"Segoe UI\", sans-serif",
+    font: "600 34px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif",
     color: "#f3f3f3",
     iconSize: 24,
   });
-  ctx.font = "600 27px \"Bahnschrift\", \"Trebuchet MS\", \"Segoe UI\", sans-serif";
+  ctx.font = "600 27px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif";
   ctx.fillStyle = "#efefef";
   ctx.fillText("Visual Score", rightX + 420, r2 + boxH + 46);
   ctx.font = "700 36px \"Segoe UI Emoji\", \"Segoe UI Symbol\", sans-serif";
   ctx.fillStyle = "#fff4f4";
   ctx.fillText(starsText, rightX + 420, r2 + boxH + 85);
-  ctx.font = "600 34px \"Bahnschrift\", \"Trebuchet MS\", \"Segoe UI\", sans-serif";
+  ctx.font = "600 34px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif";
   ctx.fillStyle = "#efefef";
   const uidText = fitText(ctx, `User ID: ${String(user?.id || "-")}`, rightW - 70);
   ctx.fillText(uidText, rightX + 34, r2 + boxH + 123);
@@ -1313,14 +1333,14 @@ async function buildVouchImage({
   const height = 760;
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext("2d");
-  const FONT_TITLE = "700 56px \"Bahnschrift\", \"Trebuchet MS\", \"Segoe UI\", sans-serif";
-  const FONT_SUBTITLE = "500 24px \"Bahnschrift\", \"Trebuchet MS\", \"Segoe UI\", sans-serif";
-  const FONT_SECTION = "700 30px \"Bahnschrift\", \"Trebuchet MS\", \"Segoe UI\", sans-serif";
-  const FONT_LABEL = "600 22px \"Bahnschrift\", \"Trebuchet MS\", \"Segoe UI\", sans-serif";
-  const FONT_BODY = "500 20px \"Trebuchet MS\", \"Segoe UI\", sans-serif";
-  const FONT_BADGE = "700 22px \"Bahnschrift\", \"Trebuchet MS\", \"Segoe UI\", sans-serif";
-  const FONT_STAR_TEXT = "600 22px \"Bahnschrift\", \"Trebuchet MS\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", sans-serif";
-  const FONT_STAR_GLYPH = "700 20px \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Trebuchet MS\", sans-serif";
+  const FONT_TITLE = "700 56px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif";
+  const FONT_SUBTITLE = "500 24px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif";
+  const FONT_SECTION = "700 30px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif";
+  const FONT_LABEL = "600 22px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif";
+  const FONT_BODY = "500 20px \"Inter\", \"Segoe UI\", sans-serif";
+  const FONT_BADGE = "700 22px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif";
+  const FONT_STAR_TEXT = "600 22px \"Orbitron\", \"Inter\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", sans-serif";
+  const FONT_STAR_GLYPH = "700 20px \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Inter\", sans-serif";
 
   const bg = ctx.createLinearGradient(0, 0, width, height);
   bg.addColorStop(0, "#020202");
@@ -1748,20 +1768,11 @@ async function buildVouchImage({
     color: "#f0f0f0",
     iconSize: 20,
   });
-  await drawLineWithEmoji(ctx, {
-    emojiId: EMOJI_TICKET,
-    text: `Ticket: ${ticketLabel || "-"}`,
-    x: leftX + 24,
-    y: cardY + 192,
-    font: FONT_LABEL,
-    color: "#f0f0f0",
-    iconSize: 20,
-  });
 
   ctx.fillStyle = "#ffffff";
-  ctx.font = "700 27px \"Bahnschrift\", \"Trebuchet MS\", \"Segoe UI\", sans-serif";
-  ctx.fillText("Comment", leftX + 24, cardY + 250);
-  roundedRectPath(ctx, leftX + 20, cardY + 266, cardW - 40, cardH - 290, 12);
+  ctx.font = "700 27px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif";
+  ctx.fillText("Comment", leftX + 24, cardY + 216);
+  roundedRectPath(ctx, leftX + 20, cardY + 232, cardW - 40, cardH - 256, 12);
   ctx.fillStyle = "#0d0d0d";
   ctx.fill();
   ctx.strokeStyle = "#9a9a9a";
@@ -1875,7 +1886,7 @@ async function buildVouchImage({
   ctx.fillRect(0, height - 90, width, 90);
   drawLightStreak(width / 2, height - 10, width - 120, 3.4, 0, "rgba(255,80,80,0)", "rgba(255,245,245,0.95)", 0.8);
 
-  ctx.font = "600 20px \"Bahnschrift\", \"Trebuchet MS\", \"Segoe UI\", sans-serif";
+  ctx.font = "600 20px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif";
   ctx.fillStyle = "#ffffff";
   ctx.fillText(`${normalizedScore.toFixed(2)} / 5`, rightX + 24, starBarY + 84);
 
