@@ -701,9 +701,12 @@ function drawParticleField(ctx, width, height, palette, count = 70) {
 
 async function drawNeonAvatar(ctx, avatarUrl, x, y, size, opts = {}) {
   const innerGlow = opts.innerGlow || "rgba(255,255,255,0.65)";
+  const innerLineWidth = typeof opts.innerLineWidth === "number" ? opts.innerLineWidth : 2;
   const outerGlow = opts.outerGlow || "rgba(255,56,56,0.9)";
   const outerStroke = opts.outerStroke || "#ff4444";
+  const outerLineWidth = typeof opts.outerLineWidth === "number" ? opts.outerLineWidth : 4;
   const fallback = opts.fallback || "#2b1d1d";
+
   try {
     const img = await loadAvatarImageCached(avatarUrl);
     ctx.save();
@@ -724,7 +727,7 @@ async function drawNeonAvatar(ctx, avatarUrl, x, y, size, opts = {}) {
   ctx.shadowColor = innerGlow;
   ctx.shadowBlur = 14;
   ctx.strokeStyle = "rgba(255,255,255,0.9)";
-  ctx.lineWidth = 2;
+  ctx.lineWidth = innerLineWidth;
   ctx.beginPath();
   ctx.arc(x + size / 2, y + size / 2, size / 2 + 4, 0, Math.PI * 2);
   ctx.stroke();
@@ -734,7 +737,7 @@ async function drawNeonAvatar(ctx, avatarUrl, x, y, size, opts = {}) {
   ctx.shadowColor = outerGlow;
   ctx.shadowBlur = 22;
   ctx.strokeStyle = outerStroke;
-  ctx.lineWidth = 4;
+  ctx.lineWidth = outerLineWidth;
   ctx.beginPath();
   ctx.arc(x + size / 2, y + size / 2, size / 2 + 1, 0, Math.PI * 2);
   ctx.stroke();
@@ -768,80 +771,120 @@ async function buildLeaderboardImage(guild, topRows) {
     templateImg = await loadImage(templatePath).catch(() => null);
   }
 
-  // Template mode: use uploaded asset as full background and only place dynamic stats/avatar text.
+    // Template mode: use uploaded asset as full background and only place dynamic stats/avatar text.
   if (templateImg) {
     const width = templateImg.width;
     const height = templateImg.height;
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext("2d");
 
+    const s = Math.min(width / 2000, height / 1200);
+    const scale = (n) => Math.round(n * s);
+
     ctx.drawImage(templateImg, 0, 0, width, height);
 
     if (rows.length === 0) {
       ctx.fillStyle = "#ffe5bf";
-      ctx.font = `700 ${Math.max(18, Math.floor(width * 0.06))}px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif`;
+      ctx.font = `700 ${Math.max(18, scale(64))}px "Orbitron", "Inter", "Segoe UI", sans-serif`;
       const txt = "No helper data yet";
-      ctx.fillText(txt, (width - ctx.measureText(txt).width) / 2, Math.floor(height * 0.54));
+      ctx.fillText(txt, (width - ctx.measureText(txt).width) / 2, scale(620));
       return canvas.toBuffer("image/png");
     }
 
     const first = rows[0];
-    const avatarSize = Math.floor(width * 0.17);
-    const avatarX = Math.floor(width * 0.5 - avatarSize / 2);
-    const avatarY = Math.floor(height * 0.42 - avatarSize / 2);
+    const centerX = Math.round(width / 2);
+    const centerY = scale(470); // requested +40 down fix
 
-    await drawNeonAvatar(ctx, first.avatarUrl, avatarX, avatarY, avatarSize, {
+    // Requested main spotlight area anchor (for layout math)
+    const heroBox = { x: scale(250), y: scale(360), w: scale(1500), h: scale(420) };
+
+    const topAvatarSize = Math.max(80, scale(250)); // 260 - 10 requested
+    const topAvatarX = Math.round(centerX - topAvatarSize / 2);
+    const topAvatarY = Math.round(centerY - topAvatarSize / 2);
+
+    await drawNeonAvatar(ctx, first.avatarUrl, topAvatarX, topAvatarY, topAvatarSize, {
       outerStroke: "#ffcf86",
-      outerGlow: "rgba(255,195,112,0.9)",
-      innerGlow: "rgba(255,247,225,0.7)",
+      outerGlow: "rgba(255,156,46,0.70)",
+      innerGlow: "rgba(255,210,122,0.60)",
+      innerLineWidth: 1.5,
+      outerLineWidth: 3,
     });
 
+    const topRadius = Math.round(topAvatarSize / 2);
+    const usernameY = centerY + topRadius + scale(60); // requested spacing
+
     ctx.fillStyle = "#ffe5c1";
-    ctx.font = `700 ${Math.max(18, Math.floor(width * 0.026))}px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif`;
-    const topName = fitText(ctx, `#1 ${String(first.name || "Unknown")}`.toUpperCase(), Math.floor(width * 0.78));
-    ctx.fillText(topName, (width - ctx.measureText(topName).width) / 2, Math.floor(height * 0.635));
+    ctx.font = `700 ${Math.max(20, scale(75))}px "Orbitron", "Inter", "Segoe UI", sans-serif`;
+    const topName = fitText(ctx, `#1 ${String(first.name || "Unknown")}`.toUpperCase(), scale(1200));
+    ctx.fillText(topName, (width - ctx.measureText(topName).width) / 2, usernameY);
 
-    const topRating = typeof first.rating === "number" ? `${first.rating.toFixed(2)}/5 ${starsFromRating(first.rating)}` : "No rating";
-    const topMeta = `${first.tickets} Tickets   •   ${topRating}`;
-    ctx.font = `600 ${Math.max(13, Math.floor(width * 0.02))}px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif`;
+    const ratingNum = typeof first.rating === "number" ? first.rating : null;
+    const ratingLabel = ratingNum !== null ? `${ratingNum.toFixed(2)}/5` : "No rating";
+    const ticketsLine = `${first.tickets} Tickets  |  ${ratingLabel}`;
+    ctx.font = `600 ${Math.max(16, scale(50))}px "Orbitron", "Inter", "Segoe UI", sans-serif`;
     ctx.fillStyle = "#ffd9ac";
-    const topMetaSafe = fitText(ctx, topMeta, Math.floor(width * 0.8));
-    ctx.fillText(topMetaSafe, (width - ctx.measureText(topMetaSafe).width) / 2, Math.floor(height * 0.675));
+    const ticketsY = usernameY + scale(64);
+    const ticketsSafe = fitText(ctx, ticketsLine, scale(1100));
+    ctx.fillText(ticketsSafe, (width - ctx.measureText(ticketsSafe).width) / 2, ticketsY);
 
-            const listStartY = Math.floor(height * 0.75);
-    const rowGap = Math.floor(height * 0.125);
-    const colLeftX = Math.floor(width * 0.20);
-    const colRightX = Math.floor(width * 0.67);
-    const colTextMax = Math.floor(width * 0.2);
-    const rowAvatar = Math.max(16, Math.floor(width * 0.052));
+    // mathematically centered stars
+    if (ratingNum !== null) {
+      const full = Math.max(0, Math.min(5, Math.round(ratingNum)));
+      const starY = ticketsY + scale(58); // +10 lower requested
+      const starFontPx = Math.max(18, scale(48));
+      const gap = Math.max(4, scale(8));
+      const starW = starFontPx;
+      const totalW = 5 * starW + 4 * gap;
+      let x = Math.round(width / 2 - totalW / 2);
+      for (let i = 0; i < 5; i++) {
+        ctx.font = `700 ${starFontPx}px "Segoe UI Emoji", "Segoe UI Symbol", "Inter", sans-serif`;
+        ctx.fillStyle = i < full ? "#ffd27a" : "rgba(255,240,215,0.55)";
+        ctx.fillText("?", x, starY);
+        x += starW + gap;
+      }
+    }
 
-    const gridRows = rows.slice(1, 5); // #2 - #5 only, fits the template boxes
-    for (let i = 0; i < gridRows.length; i++) {
-      const row = gridRows[i];
-      const col = i % 2;
-      const rowIdx = Math.floor(i / 2);
-      const baseX = col === 0 ? colLeftX : colRightX;
-      const y = listStartY + rowIdx * rowGap;
+    const cards = [
+      { rank: 2, x: scale(250), y: scale(820), w: scale(820), h: scale(220), avatar: scale(115), nameFont: scale(48), statFont: scale(36) },
+      { rank: 3, x: scale(1130), y: scale(820), w: scale(820), h: scale(220), avatar: scale(115), nameFont: scale(48), statFont: scale(36) },
+      { rank: 4, x: scale(250), y: scale(1040), w: scale(820), h: scale(180), avatar: scale(95), nameFont: scale(36), statFont: scale(28) },
+      { rank: 5, x: scale(1130), y: scale(1040), w: scale(820), h: scale(180), avatar: scale(95), nameFont: scale(36), statFont: scale(28) },
+    ];
 
-      const avatarY = y - Math.floor(rowAvatar * 0.48);
-      await drawNeonAvatar(ctx, row.avatarUrl, baseX, avatarY, rowAvatar, {
+    for (const card of cards) {
+      const row = rows[card.rank - 1];
+      if (!row) continue;
+
+      const avatarSize = Math.max(18, card.avatar);
+      const avatarX = card.x + scale(24);
+      const avatarY = card.y + Math.round((card.h - avatarSize) / 2);
+      await drawNeonAvatar(ctx, row.avatarUrl, avatarX, avatarY, avatarSize, {
         outerStroke: "#ffc976",
-        outerGlow: "rgba(255,194,112,0.8)",
-        innerGlow: "rgba(255,248,225,0.6)",
+        outerGlow: "rgba(255,156,46,0.70)",
+        innerGlow: "rgba(255,210,122,0.60)",
+        innerLineWidth: 1.3,
+        outerLineWidth: 2.6,
       });
 
-      const textX = baseX + rowAvatar + Math.floor(width * 0.014);
-      ctx.font = `700 ${Math.max(9, Math.floor(width * 0.016))}px "Inter", "Segoe UI", sans-serif`;
-      ctx.fillStyle = "#ffe8c9";
-      const line1 = fitText(ctx, `#${i + 2} ${String(row.name || "Unknown")}`, colTextMax);
-      ctx.fillText(line1, textX, y + Math.floor(height * 0.002));
+      const textX = avatarX + avatarSize + scale(24);
+      const maxTextW = card.w - (textX - card.x) - scale(26);
 
-      const rr = typeof row.rating === "number" ? `${row.rating.toFixed(2)}/5 ${starsFromRating(row.rating)}` : "No rating";
-      const line2Raw = `${row.tickets} Tickets   •   ${rr}`;
-      ctx.font = `600 ${Math.max(8, Math.floor(width * 0.012))}px "Inter", "Segoe UI", sans-serif`;
+      ctx.fillStyle = "#ffe8c9";
+      ctx.font = `700 ${Math.max(14, card.nameFont)}px "Inter", "Segoe UI", sans-serif`;
+      const line1 = fitText(ctx, `#${card.rank} ${String(row.name || "Unknown")}`, maxTextW);
+      ctx.fillText(line1, textX, card.y + scale(card.h >= scale(200) ? 94 : 74));
+
+      const rrn = typeof row.rating === "number" ? row.rating : null;
+      const rrLabel = rrn !== null ? `${rrn.toFixed(2)}/5` : "No rating";
+      const rrStars = rrn !== null ? starsFromRating(rrn) : "";
+      const line2Raw = rrn !== null
+        ? `${row.tickets} Tickets  |  ${rrLabel} ${rrStars}`
+        : `${row.tickets} Tickets  |  ${rrLabel}`;
+
       ctx.fillStyle = "#ffd9ae";
-      const line2 = fitText(ctx, line2Raw, colTextMax);
-      ctx.fillText(line2, textX, y + Math.floor(height * 0.042));
+      ctx.font = `600 ${Math.max(11, card.statFont)}px "Inter", "Segoe UI", sans-serif`;
+      const line2 = fitText(ctx, line2Raw, maxTextW);
+      ctx.fillText(line2, textX, card.y + scale(card.h >= scale(200) ? 162 : 132));
     }
 
     return canvas.toBuffer("image/png");
@@ -2655,6 +2698,9 @@ if (!BOT_TOKEN) {
   throw new Error("Missing bot token. Set DISCORD_TOKEN or BOT_TOKEN in .env");
 }
 client.login(BOT_TOKEN);
+
+
+
 
 
 
