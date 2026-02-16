@@ -170,6 +170,70 @@ async function drawLineWithEmoji(ctx, opts) {
   }
   ctx.fillText(text, textX, y);
 }
+function ensureAssetDirectories() {
+  const dirs = [ASSETS_DIR, ASSETS_TEMPLATES_DIR, ASSETS_OVERLAYS_DIR, ASSETS_OUTPUT_DIR, ASSETS_AVATAR_CACHE_DIR];
+  for (const d of dirs) {
+    if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
+  }
+}
+
+function assetTemplatePath(name) {
+  const base = String(name || "").trim().toLowerCase();
+  return path.join(ASSETS_TEMPLATES_DIR, `${base}.png`);
+}
+
+async function drawTemplateBackground(ctx, width, height, name) {
+  const p = assetTemplatePath(name);
+  if (!fs.existsSync(p)) return false;
+  try {
+    const img = await loadImage(p);
+    ctx.drawImage(img, 0, 0, width, height);
+    return true;
+  } catch (e) {
+    console.warn(`Template load failed (${name}):`, e?.message || e);
+    return false;
+  }
+}
+
+function avatarCachePath(avatarUrl) {
+  const key = Buffer.from(String(avatarUrl || "")).toString("base64url").slice(0, 96);
+  return path.join(ASSETS_AVATAR_CACHE_DIR, `${key}.png`);
+}
+
+async function loadAvatarImageCached(avatarUrl) {
+  if (!avatarUrl) throw new Error("missing avatar url");
+  const url = String(avatarUrl);
+  if (!/^https?:\/\//i.test(url)) return loadImage(url);
+  const p = avatarCachePath(url);
+  try {
+    if (fs.existsSync(p)) {
+      const age = Date.now() - fs.statSync(p).mtimeMs;
+      if (age < AVATAR_CACHE_TTL_MS) return await loadImage(p);
+    }
+    const res = await fetch(url);
+    if (res.ok) {
+      const ab = await res.arrayBuffer();
+      fs.writeFileSync(p, Buffer.from(ab));
+      return await loadImage(p);
+    }
+  } catch {}
+  return loadImage(url);
+}
+
+function saveGeneratedPng(kind, buffer, hint = "image") {
+  try {
+    const safeKind = String(kind || "misc").replace(/[^a-z0-9_-]+/gi, "-").toLowerCase();
+    const safeHint = String(hint || "image").replace(/[^a-z0-9_-]+/gi, "-").toLowerCase().slice(0, 60);
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const file = `${safeKind}-${safeHint}-${stamp}.png`;
+    const out = path.join(ASSETS_OUTPUT_DIR, file);
+    fs.writeFileSync(out, buffer);
+    return out;
+  } catch {
+    return null;
+  }
+}
+
 
 const BANNER_MAIN_AND_CARRY =
   "https://media.discordapp.net/attachments/1405973335979851877/1466056854420455434/RULES_BANNER_2.gif";
@@ -186,6 +250,12 @@ const BANNER_LEADERBOARD =
 const BANNER_HELPER_PROFILE =
   "https://media.discordapp.net/attachments/1405973335979851877/1466056723348324566/RULES_BANNER_7.gif";
 
+const ASSETS_DIR = path.join(__dirname, "assets");
+const ASSETS_TEMPLATES_DIR = path.join(ASSETS_DIR, "templates");
+const ASSETS_OVERLAYS_DIR = path.join(ASSETS_DIR, "overlays");
+const ASSETS_OUTPUT_DIR = path.join(ASSETS_DIR, "output");
+const ASSETS_AVATAR_CACHE_DIR = path.join(ASSETS_DIR, "cache", "avatars");
+const AVATAR_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const DATA_DIR = path.join(__dirname, "data");
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
 const INSTANCE_LOCK_PATH = path.join(DATA_DIR, "bot_instance.lock");
@@ -231,6 +301,7 @@ function setupSingleInstanceLock() {
 }
 
 setupSingleInstanceLock();
+ensureAssetDirectories();
 registerCanvasFonts();
 
 const TICKETS_STATE_PATH = path.join(DATA_DIR, "tickets_state.json");
@@ -634,7 +705,7 @@ async function drawNeonAvatar(ctx, avatarUrl, x, y, size, opts = {}) {
   const outerStroke = opts.outerStroke || "#ff4444";
   const fallback = opts.fallback || "#2b1d1d";
   try {
-    const img = await loadImage(avatarUrl);
+    const img = await loadAvatarImageCached(avatarUrl);
     ctx.save();
     ctx.beginPath();
     ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2);
@@ -696,12 +767,15 @@ async function buildLeaderboardImage(guild, topRows) {
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext("2d");
 
-  const bg = ctx.createLinearGradient(0, 0, width, height);
-  bg.addColorStop(0, "#070503");
-  bg.addColorStop(0.45, "#1a1208");
-  bg.addColorStop(1, "#060606");
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, width, height);
+  const usedLeaderboardTemplate = await drawTemplateBackground(ctx, width, height, "leaderboard");
+  if (!usedLeaderboardTemplate) {
+    const bg = ctx.createLinearGradient(0, 0, width, height);
+    bg.addColorStop(0, "#070503");
+    bg.addColorStop(0.45, "#1a1208");
+    bg.addColorStop(1, "#060606");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, width, height);
+  }
 
   drawParticleField(ctx, width, height, ["255,218,152", "255,176,88", "255,255,255"], 150);
 
@@ -887,12 +961,15 @@ async function buildProfileImage(user, rec) {
   const scoreText = rating ? `${rating.toFixed(2)}/5` : "No rating";
   const starsText = starsFromRating(rating || 0);
 
-  const bg = ctx.createLinearGradient(0, 0, width, height);
-  bg.addColorStop(0, "#050505");
-  bg.addColorStop(0.55, "#0d0d0d");
-  bg.addColorStop(1, "#171717");
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, width, height);
+  const usedProfileTemplate = await drawTemplateBackground(ctx, width, height, "profile");
+  if (!usedProfileTemplate) {
+    const bg = ctx.createLinearGradient(0, 0, width, height);
+    bg.addColorStop(0, "#050505");
+    bg.addColorStop(0.55, "#0d0d0d");
+    bg.addColorStop(1, "#171717");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, width, height);
+  }
   drawParticleField(ctx, width, height, ["255,255,255", "240,240,240", "255,52,52"], 95);
 
   roundedRectPath(ctx, 16, 16, width - 32, height - 32, 24);
@@ -1386,12 +1463,15 @@ async function buildVouchImage({
   const FONT_STAR_TEXT = "600 22px \"Orbitron\", \"Inter\", \"Segoe UI Emoji\", \"Segoe UI Symbol\", sans-serif";
   const FONT_STAR_GLYPH = "700 20px \"Segoe UI Emoji\", \"Segoe UI Symbol\", \"Inter\", sans-serif";
 
-  const bg = ctx.createLinearGradient(0, 0, width, height);
-  bg.addColorStop(0, "#020202");
-  bg.addColorStop(0.55, "#0a0a0a");
-  bg.addColorStop(1, "#151515");
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, width, height);
+  const usedVouchTemplate = await drawTemplateBackground(ctx, width, height, "vouch");
+  if (!usedVouchTemplate) {
+    const bg = ctx.createLinearGradient(0, 0, width, height);
+    bg.addColorStop(0, "#020202");
+    bg.addColorStop(0.55, "#0a0a0a");
+    bg.addColorStop(1, "#151515");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, width, height);
+  }
 
   const haze = ctx.createRadialGradient(width * 0.5, 140, 30, width * 0.5, 140, 360);
   haze.addColorStop(0, "rgba(255,255,255,0.32)");
@@ -2079,6 +2159,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const user = interaction.options.getUser("user") || interaction.user;
       const rec = ensureHelper(user.id);
       const png = await buildProfileImage(user, rec);
+      saveGeneratedPng("profile", png, user.id);
       const file = new AttachmentBuilder(png, { name: "helper-profile.png" });
       return safeReply(interaction, { files: [file] });
     }
@@ -2107,6 +2188,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         });
       }
       const png = await buildLeaderboardImage(interaction.guild, rows);
+      saveGeneratedPng("leaderboard", png, "alltime");
       const file = new AttachmentBuilder(png, { name: "mohgs-leaderboard.png" });
       return safeReply(interaction, { files: [file] });
     }
@@ -2133,6 +2215,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         });
       }
       const png = await buildLeaderboardImage(interaction.guild, rows);
+      saveGeneratedPng("leaderboard", png, "weekly");
       const file = new AttachmentBuilder(png, { name: "mohgs-weekly-leaderboard.png" });
       return safeReply(interaction, { files: [file] });
     }
@@ -2548,6 +2631,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           ticketLabel: `#${ch.name}`,
         }).catch(() => null);
         if (vouchPng) {
+          saveGeneratedPng("vouch", vouchPng, ch.id);
           const file = new AttachmentBuilder(vouchPng, { name: `vouch-${ch.id}.png` });
           await reviewCh.send({ files: [file] }).catch(() => {});
         }
@@ -2595,6 +2679,9 @@ if (!BOT_TOKEN) {
   throw new Error("Missing bot token. Set DISCORD_TOKEN or BOT_TOKEN in .env");
 }
 client.login(BOT_TOKEN);
+
+
+
 
 
 
