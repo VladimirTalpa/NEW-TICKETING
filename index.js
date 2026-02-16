@@ -765,189 +765,189 @@ function drawAvatarOrbit(ctx, cx, cy, baseRadius, opts = {}) {
 async function buildLeaderboardImage(guild, topRows) {
   const rows = Array.isArray(topRows) ? topRows.slice(0, 10) : [];
 
-  const width = 2000;
-  const height = 1200;
-  const canvas = createCanvas(width, height);
+  const CANVAS_WIDTH = 2000;
+  const CANVAS_HEIGHT = 1600;
+  const HEADER_Y = 130;
+  const MAIN_RING_CENTER = { x: 1000, y: 450 };
+  const MAIN_BOX = { x: 250, y: 240, w: 1500, h: 430 };
+
+  const SLOT_W = 820;
+  const SLOT_H = 200;
+  const SLOT_ROWS = [
+    { x: 260, y: 820 },
+    { x: 1140, y: 820 },
+    { x: 260, y: 1045 },
+    { x: 1140, y: 1045 },
+    { x: 260, y: 1270 },
+    { x: 1140, y: 1270 },
+    { x: 260, y: 1470 },
+    { x: 1140, y: 1470 },
+    { x: 590, y: 1400 },
+  ];
+
+  const canvas = createCanvas(CANVAS_WIDTH, CANVAS_HEIGHT);
   const ctx = canvas.getContext("2d");
 
-  const templatePath = assetTemplatePath("leaderboard");
-  let templateImg = null;
-  if (fs.existsSync(templatePath)) {
-    templateImg = await loadImage(templatePath).catch(() => null);
-  }
+  const bg = ctx.createLinearGradient(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+  bg.addColorStop(0, "#050507");
+  bg.addColorStop(0.48, "#0b0a0f");
+  bg.addColorStop(1, "#070707");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+  drawParticleField(ctx, CANVAS_WIDTH, CANVAS_HEIGHT, ["255,154,45", "255,211,111", "62,42,31"], 420);
 
-  if (templateImg) {
-    ctx.drawImage(templateImg, 0, 0, width, height);
-  } else {
-    const bg = ctx.createLinearGradient(0, 0, width, height);
-    bg.addColorStop(0, "#070503");
-    bg.addColorStop(0.52, "#1b1108");
-    bg.addColorStop(1, "#070707");
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, width, height);
-    drawParticleField(ctx, width, height, ["255,188,98", "255,140,58", "255,255,255"], 220);
-  }
-
-  const crownCandidates = [
-    path.join(ASSETS_OVERLAYS_DIR, "crown.png"),
-    path.join(ASSETS_TEMPLATES_DIR, "crown.png"),
-    path.join(ASSETS_DIR, "crown.png"),
-  ];
-  let crownImg = null;
-  for (const cp of crownCandidates) {
-    if (!fs.existsSync(cp)) continue;
-    crownImg = await loadImage(cp).catch(() => null);
-    if (crownImg) break;
-  }
-
-  roundedRectPath(ctx, 46, 34, width - 92, height - 68, 34);
-  ctx.fillStyle = "rgba(8,8,8,0.28)";
+  roundedRectPath(ctx, 50, 50, 1900, 1500, 28);
+  ctx.fillStyle = "rgba(9,9,9,0.18)";
   ctx.fill();
-  ctx.strokeStyle = "rgba(255, 186, 96, 0.72)";
-  ctx.lineWidth = 3;
+  ctx.save();
+  ctx.shadowColor = "rgba(255,156,46,0.75)";
+  ctx.shadowBlur = 22;
+  ctx.strokeStyle = "#FFD36F";
+  ctx.lineWidth = 2;
   ctx.stroke();
+  ctx.restore();
 
-  const crownSize = 90;
-  if (crownImg) {
-    ctx.drawImage(crownImg, width / 2 - 280, 78, crownSize, crownSize);
-  }
+  ctx.save();
+  ctx.fillStyle = "#FBE8AC";
+  ctx.shadowColor = "rgba(255,221,112,0.60)";
+  ctx.shadowBlur = 18;
+  ctx.font = '700 80px "Orbitron", "Inter", "Segoe UI", sans-serif';
+  const header = "Leaderboard for Mohgs";
+  ctx.fillText(header, 1000 - ctx.measureText(header).width / 2, HEADER_Y);
+  ctx.restore();
 
-  ctx.fillStyle = "#ffe6c1";
-  ctx.font = '700 96px "Orbitron", "Inter", "Segoe UI", sans-serif';
-  const hTitle = "Leaderboard";
-  ctx.fillText(hTitle, width / 2 - ctx.measureText(hTitle).width / 2, 154);
-
-  ctx.fillStyle = "#e8cb9d";
-  ctx.font = '700 48px "Orbitron", "Inter", "Segoe UI", sans-serif';
-  const hServer = String(guild?.name || "MOHGS SERVER").toUpperCase();
-  ctx.fillText(hServer, width / 2 - ctx.measureText(hServer).width / 2, 214);
-
-  ctx.fillStyle = "#dfc7a5";
-  ctx.font = '500 56px "Orbitron", "Inter", "Segoe UI", sans-serif';
-  const hSub = "Top helpers by completed tickets";
-  ctx.fillText(hSub, width / 2 - ctx.measureText(hSub).width / 2, 280);
-
-  if (rows.length === 0) {
-    ctx.fillStyle = "#ffe5bf";
-    ctx.font = '700 68px "Orbitron", "Inter", "Segoe UI", sans-serif';
-    const txt = "No helper data yet";
-    ctx.fillText(txt, (width - ctx.measureText(txt).width) / 2, 620);
-    return canvas.toBuffer("image/png");
-  }
-
-  const first = rows[0];
-
-  const hero = { x: 250, y: 320, w: 1500, h: 470 };
-  roundedRectPath(ctx, hero.x, hero.y, hero.w, hero.h, 30);
-  ctx.fillStyle = "rgba(10,10,10,0.22)";
+  roundedRectPath(ctx, MAIN_BOX.x, MAIN_BOX.y, MAIN_BOX.w, MAIN_BOX.h, 30);
+  ctx.fillStyle = "rgba(8,8,8,0.12)";
   ctx.fill();
-  ctx.strokeStyle = "rgba(255, 184, 96, 0.48)";
-  ctx.lineWidth = 2.4;
+  ctx.save();
+  ctx.strokeStyle = "rgba(255,211,111,0.50)";
+  ctx.shadowColor = "rgba(255,154,45,0.50)";
+  ctx.shadowBlur = 26;
+  ctx.lineWidth = 2;
   ctx.stroke();
+  ctx.restore();
 
-  const centerX = width / 2;
-  const centerY = 520;
+  const ringOuter = 160;
+  const ringInner = 130;
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(MAIN_RING_CENTER.x, MAIN_RING_CENTER.y, ringOuter, 0, Math.PI * 2);
+  ctx.strokeStyle = "rgba(255,183,77,0.95)";
+  ctx.shadowColor = "rgba(255,183,77,0.78)";
+  ctx.shadowBlur = 40;
+  ctx.lineWidth = 8;
+  ctx.stroke();
+  ctx.restore();
 
-  const topAvatarSize = 330;
-  const topAvatarX = Math.round(centerX - topAvatarSize / 2);
-  const topAvatarY = Math.round(centerY - topAvatarSize / 2 + 12);
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(MAIN_RING_CENTER.x, MAIN_RING_CENTER.y, ringInner, 0, Math.PI * 2);
+  ctx.strokeStyle = "rgba(255,232,180,0.88)";
+  ctx.shadowColor = "rgba(255,211,111,0.45)";
+  ctx.shadowBlur = 16;
+  ctx.lineWidth = 4;
+  ctx.stroke();
+  ctx.restore();
 
-  await drawNeonAvatar(ctx, first.avatarUrl, topAvatarX, topAvatarY, topAvatarSize, {
-    outerStroke: "#ffcf86",
-    outerGlow: "rgba(255,156,46,0.70)",
-    innerGlow: "rgba(255,210,122,0.60)",
-    innerLineWidth: 2,
-    outerLineWidth: 4,
-  });
-
-  drawAvatarOrbit(ctx, centerX, topAvatarY + topAvatarSize / 2, topAvatarSize / 2 + 16, {
-    main: "rgba(255, 236, 180, 0.9)",
-    alt: "rgba(255, 120, 40, 0.88)",
-    count: 3,
-  });
-
-  if (crownImg) {
-    ctx.drawImage(crownImg, centerX - 75, topAvatarY - 92, 150, 104);
-  }
-
-  const nameY = 700;
-  ctx.fillStyle = "#ffe8c7";
-  ctx.font = '700 86px "Orbitron", "Inter", "Segoe UI", sans-serif';
-  const topName = fitText(ctx, `#1 ${String(first.name || "Unknown")}`.toUpperCase(), 1300);
-  ctx.fillText(topName, centerX - ctx.measureText(topName).width / 2, nameY);
-
-  const ratingNum = typeof first.rating === "number" ? first.rating : null;
-  const ratingLabel = ratingNum !== null ? `${ratingNum.toFixed(2)}/5` : "No rating";
-
-  ctx.fillStyle = "#ffd9ac";
-  ctx.font = '600 62px "Orbitron", "Inter", "Segoe UI", sans-serif';
-  const ticketLine = `${first.tickets} Tickets`;
-  ctx.fillText(ticketLine, centerX - ctx.measureText(ticketLine).width / 2, 768);
-
-  if (ratingNum !== null) {
-    const full = Math.max(0, Math.min(5, Math.round(ratingNum)));
-    const starFontPx = 50;
-    const gap = 10;
-    const starW = starFontPx;
-    const totalW = 5 * starW + 4 * gap;
-    let x = Math.round(centerX - totalW / 2);
-
-    for (let i = 0; i < 5; i++) {
-      ctx.font = `700 ${starFontPx}px "Segoe UI Emoji", "Segoe UI Symbol", "Inter", sans-serif`;
-      ctx.fillStyle = i < full ? "#ffd27a" : "rgba(255,240,215,0.5)";
-      ctx.fillText(i < full ? "★" : "☆", x, 822);
-      x += starW + gap;
+  // Crown from templates only
+  const crownTemplatePath = assetTemplatePath("crown");
+  if (fs.existsSync(crownTemplatePath)) {
+    const crownImg = await loadImage(crownTemplatePath).catch(() => null);
+    if (crownImg) {
+      const crownW = 150;
+      const crownH = 100;
+      const crownX = 1000 - Math.floor(crownW / 2);
+      const crownY = 230;
+      ctx.save();
+      ctx.shadowColor = "rgba(255,211,111,0.70)";
+      ctx.shadowBlur = 22;
+      ctx.drawImage(crownImg, crownX, crownY, crownW, crownH);
+      ctx.restore();
     }
-
-    ctx.fillStyle = "rgba(255, 230, 188, 0.92)";
-    ctx.font = '600 36px "Orbitron", "Inter", "Segoe UI", sans-serif';
-    ctx.fillText(ratingLabel, centerX - ctx.measureText(ratingLabel).width / 2, 860);
   }
 
-  const cards = [
-    { rank: 2, x: 320, y: 878, w: 620, h: 124 },
-    { rank: 3, x: 1060, y: 878, w: 620, h: 124 },
-    { rank: 4, x: 320, y: 1022, w: 620, h: 124 },
-    { rank: 5, x: 1060, y: 1022, w: 620, h: 124 },
-  ];
+  // Top avatar + stats (if available)
+  const first = rows[0] || null;
+  if (first) {
+    const avatarSize = 260;
+    const avatarX = MAIN_RING_CENTER.x - Math.floor(avatarSize / 2);
+    const avatarY = MAIN_RING_CENTER.y - Math.floor(avatarSize / 2);
+    await drawNeonAvatar(ctx, first.avatarUrl, avatarX, avatarY, avatarSize, {
+      outerStroke: "#FFD36F",
+      outerGlow: "rgba(255,154,45,0.60)",
+      innerGlow: "rgba(255,232,180,0.70)",
+      outerLineWidth: 3,
+      innerLineWidth: 2,
+    });
 
-  for (const card of cards) {
-    const row = rows[card.rank - 1];
-    if (!row) continue;
+    const topName = fitText(ctx, String(first.name || "Unknown").toUpperCase(), 980);
+    ctx.fillStyle = "#FBE8AC";
+    ctx.font = '700 70px "Orbitron", "Inter", "Segoe UI", sans-serif';
+    ctx.fillText(topName, 1000 - ctx.measureText(topName).width / 2, 700);
 
-    roundedRectPath(ctx, card.x, card.y, card.w, card.h, 22);
-    ctx.fillStyle = "rgba(8,8,8,0.62)";
+    const ratingNum = typeof first.rating === "number" ? first.rating : null;
+    const topLine = `${first.tickets} Tickets`;
+    ctx.fillStyle = "#ffd9ac";
+    ctx.font = '600 50px "Orbitron", "Inter", "Segoe UI", sans-serif';
+    ctx.fillText(topLine, 1000 - ctx.measureText(topLine).width / 2, 760);
+
+    if (ratingNum !== null) {
+      const full = Math.max(0, Math.min(5, Math.round(ratingNum)));
+      const starFontPx = 46;
+      const gap = 9;
+      const totalW = 5 * starFontPx + 4 * gap;
+      let x = Math.round(1000 - totalW / 2);
+      for (let i = 0; i < 5; i++) {
+        ctx.font = `700 ${starFontPx}px "Segoe UI Emoji", "Segoe UI Symbol", "Inter", sans-serif`;
+        ctx.fillStyle = i < full ? "#ffd27a" : "rgba(255,240,215,0.52)";
+        ctx.fillText(i < full ? "★" : "☆", x, 815);
+        x += starFontPx + gap;
+      }
+    }
+  }
+
+  // Draw slots #2..#10
+  for (let i = 0; i < SLOT_ROWS.length; i++) {
+    const s = SLOT_ROWS[i];
+    roundedRectPath(ctx, s.x, s.y, SLOT_W, SLOT_H, 28);
+    ctx.fillStyle = "rgba(11,10,15,0.10)";
     ctx.fill();
-    ctx.strokeStyle = "rgba(255, 178, 94, 0.82)";
+    ctx.save();
+    ctx.shadowColor = "rgba(255,143,36,0.40)";
+    ctx.shadowBlur = 38;
+    ctx.strokeStyle = "rgba(255,211,111,0.85)";
     ctx.lineWidth = 2;
     ctx.stroke();
+    ctx.restore();
 
-    const avatarSize = 96;
-    const avatarX = card.x + 24;
-    const avatarY = card.y + Math.round((card.h - avatarSize) / 2);
+    // If row data exists, place compact content cleanly
+    const row = rows[i + 1];
+    if (!row) continue;
+
+    const avatarSize = 92;
+    const avatarX = s.x + 24;
+    const avatarY = s.y + Math.floor((SLOT_H - avatarSize) / 2);
     await drawNeonAvatar(ctx, row.avatarUrl, avatarX, avatarY, avatarSize, {
-      outerStroke: "#ffd08a",
-      outerGlow: "rgba(255,175,90,0.78)",
-      innerGlow: "rgba(255,236,204,0.62)",
-      innerLineWidth: 1.8,
-      outerLineWidth: 3,
+      outerStroke: "#FFD36F",
+      outerGlow: "rgba(255,154,45,0.55)",
+      innerGlow: "rgba(255,232,180,0.60)",
+      outerLineWidth: 2.4,
+      innerLineWidth: 1.5,
     });
 
     const textX = avatarX + avatarSize + 20;
-    const maxTextW = card.w - (textX - card.x) - 24;
+    const maxTextW = SLOT_W - (textX - s.x) - 24;
 
     ctx.fillStyle = "#ffe8ca";
-    ctx.font = '700 58px "Orbitron", "Inter", "Segoe UI", sans-serif';
-    const line1 = fitText(ctx, `#${card.rank} ${String(row.name || "Unknown")}`, maxTextW);
-    ctx.fillText(line1, textX, card.y + 56);
+    ctx.font = '700 52px "Orbitron", "Inter", "Segoe UI", sans-serif';
+    const line1 = fitText(ctx, `#${i + 2} ${String(row.name || "Unknown")}`, maxTextW);
+    ctx.fillText(line1, textX, s.y + 76);
 
-    const rrn = typeof row.rating === "number" ? row.rating : null;
-    const rrLabel = rrn !== null ? `${rrn.toFixed(2)}/5` : "No rating";
-
+    const rr = typeof row.rating === "number" ? `${row.rating.toFixed(2)}/5` : "No rating";
     ctx.fillStyle = "#ffd9ae";
-    ctx.font = '600 42px "Orbitron", "Inter", "Segoe UI", sans-serif';
-    const line2 = fitText(ctx, `${row.tickets} Tickets | ${rrLabel}`, maxTextW);
-    ctx.fillText(line2, textX, card.y + 104);
+    ctx.font = '600 36px "Orbitron", "Inter", "Segoe UI", sans-serif';
+    const line2 = fitText(ctx, `${row.tickets} Tickets | ${rr}`, maxTextW);
+    ctx.fillText(line2, textX, s.y + 144);
   }
 
   return canvas.toBuffer("image/png");
@@ -2686,6 +2686,7 @@ if (!BOT_TOKEN) {
   throw new Error("Missing bot token. Set DISCORD_TOKEN or BOT_TOKEN in .env");
 }
 client.login(BOT_TOKEN);
+
 
 
 
