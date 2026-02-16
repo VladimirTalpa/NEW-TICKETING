@@ -799,20 +799,20 @@ async function buildLeaderboardImage(guild, topRows) {
     ctx.fillStyle = "#ffe5c1";
     ctx.font = `700 ${Math.max(18, Math.floor(width * 0.026))}px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif`;
     const topName = fitText(ctx, `#1 ${String(first.name || "Unknown")}`.toUpperCase(), Math.floor(width * 0.78));
-    ctx.fillText(topName, (width - ctx.measureText(topName).width) / 2, Math.floor(height * 0.595));
+    ctx.fillText(topName, (width - ctx.measureText(topName).width) / 2, Math.floor(height * 0.635));
 
     const topRating = typeof first.rating === "number" ? `${first.rating.toFixed(2)}/5 ${starsFromRating(first.rating)}` : "No rating";
     const topMeta = `${first.tickets} Tickets   •   ${topRating}`;
     ctx.font = `600 ${Math.max(13, Math.floor(width * 0.02))}px \"Orbitron\", \"Inter\", \"Segoe UI\", sans-serif`;
     ctx.fillStyle = "#ffd9ac";
     const topMetaSafe = fitText(ctx, topMeta, Math.floor(width * 0.8));
-    ctx.fillText(topMetaSafe, (width - ctx.measureText(topMetaSafe).width) / 2, Math.floor(height * 0.655));
+    ctx.fillText(topMetaSafe, (width - ctx.measureText(topMetaSafe).width) / 2, Math.floor(height * 0.69));
 
-            const listStartY = Math.floor(height * 0.695);
+            const listStartY = Math.floor(height * 0.705);
     const rowGap = Math.floor(height * 0.108);
-    const colLeftX = Math.floor(width * 0.145);
-    const colRightX = Math.floor(width * 0.62);
-    const colTextMax = Math.floor(width * 0.26);
+    const colLeftX = Math.floor(width * 0.19);
+    const colRightX = Math.floor(width * 0.66);
+    const colTextMax = Math.floor(width * 0.2);
     const rowAvatar = Math.max(18, Math.floor(width * 0.062));
 
     const gridRows = rows.slice(1, 5); // #2 - #5 only, fits the template boxes
@@ -831,14 +831,14 @@ async function buildLeaderboardImage(guild, topRows) {
       });
 
       const textX = baseX + rowAvatar + Math.floor(width * 0.014);
-      ctx.font = `700 ${Math.max(10, Math.floor(width * 0.021))}px "Inter", "Segoe UI", sans-serif`;
+      ctx.font = `700 ${Math.max(9, Math.floor(width * 0.016))}px "Inter", "Segoe UI", sans-serif`;
       ctx.fillStyle = "#ffe8c9";
       const line1 = fitText(ctx, `#${i + 2} ${String(row.name || "Unknown")}`, colTextMax);
       ctx.fillText(line1, textX, y - Math.floor(height * 0.004));
 
       const rr = typeof row.rating === "number" ? `${row.rating.toFixed(2)}/5 ${starsFromRating(row.rating)}` : "No rating";
       const line2Raw = `${row.tickets} Tickets   •   ${rr}`;
-      ctx.font = `600 ${Math.max(9, Math.floor(width * 0.015))}px "Inter", "Segoe UI", sans-serif`;
+      ctx.font = `600 ${Math.max(8, Math.floor(width * 0.012))}px "Inter", "Segoe UI", sans-serif`;
       ctx.fillStyle = "#ffd9ae";
       const line2 = fitText(ctx, line2Raw, colTextMax);
       ctx.fillText(line2, textX, y + Math.floor(height * 0.034));
@@ -2655,6 +2655,7 @@ if (!BOT_TOKEN) {
   throw new Error("Missing bot token. Set DISCORD_TOKEN or BOT_TOKEN in .env");
 }
 client.login(BOT_TOKEN);
+
 
 
 
