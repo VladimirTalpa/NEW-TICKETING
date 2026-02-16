@@ -1194,7 +1194,6 @@ function buildTicketMessagePayload(t, opts = {}) {
     `### ${em(EMOJI_DESC, "desc")} Description`,
     clamp(t.request || "-", 900),
   ];
-
   const container = new ContainerBuilder()
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(`## New Ticket <@${t.owner}> opened!`)
@@ -2347,13 +2346,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const msg = await channel.send(buildTicketMessagePayload(t, { status: "Waiting for claim" }));
       t.msg = msg.id;
       setTicket(channel.id, t);
-      const openPingRoleId = helperRoleForGame(guild.id, game);
-      if (openPingRoleId && guild.roles.cache.has(openPingRoleId)) {
-        await channel.send({
-          content: `<@&${openPingRoleId}> new ${String(game || "").toUpperCase()} ticket opened.`,
-          allowedMentions: { roles: [openPingRoleId] },
-        }).catch(() => {});
-      }
 
       return safeReply(interaction, { content: `Ticket created: <#${channel.id}>` });
     }
@@ -2549,4 +2541,7 @@ if (!BOT_TOKEN) {
   throw new Error("Missing bot token. Set DISCORD_TOKEN or BOT_TOKEN in .env");
 }
 client.login(BOT_TOKEN);
+
+
+
 
