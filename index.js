@@ -876,15 +876,22 @@ async function buildLeaderboardImage(guild, topRows) {
   const centerX = W / 2;
   const centerY = 498;
 
-  // Avatar rings
-  for (let i = 0; i < 3; i++) {
+  // Top-1 aura + stronger rings
+  const aura = ctx.createRadialGradient(centerX, centerY, 40, centerX, centerY, 360);
+  aura.addColorStop(0, "rgba(255, 210, 130, 0.20)");
+  aura.addColorStop(0.5, "rgba(255, 146, 48, 0.14)");
+  aura.addColorStop(1, "rgba(255, 146, 48, 0)");
+  ctx.fillStyle = aura;
+  ctx.fillRect(centerX - 380, centerY - 380, 760, 760);
+
+  for (let i = 0; i < 4; i++) {
     ctx.save();
     ctx.beginPath();
-    ctx.arc(centerX, centerY, 192 + i * 14, 0, Math.PI * 2);
-    ctx.strokeStyle = i % 2 === 0 ? "rgba(255,210,130,0.9)" : "rgba(255,120,55,0.75)";
-    ctx.shadowColor = i % 2 === 0 ? "rgba(255,210,130,0.65)" : "rgba(255,120,55,0.55)";
-    ctx.shadowBlur = 18 + i * 4;
-    ctx.lineWidth = 3 - i * 0.5;
+    ctx.arc(centerX, centerY, 188 + i * 12, 0, Math.PI * 2);
+    ctx.strokeStyle = i % 2 === 0 ? "rgba(255,219,151,0.95)" : "rgba(255,120,55,0.88)";
+    ctx.shadowColor = i % 2 === 0 ? "rgba(255,223,160,0.75)" : "rgba(255,124,58,0.68)";
+    ctx.shadowBlur = 22 + i * 5;
+    ctx.lineWidth = Math.max(2, 4.3 - i * 0.7);
     ctx.stroke();
     ctx.restore();
   }
@@ -905,15 +912,19 @@ async function buildLeaderboardImage(guild, topRows) {
 
   if (crown) {
     ctx.save();
-    ctx.shadowColor = "rgba(255, 214, 133, 0.88)";
-    ctx.shadowBlur = 22;
-    ctx.drawImage(crown, centerX - 102, 236, 204, 128);
+    ctx.shadowColor = "rgba(255, 214, 133, 0.96)";
+    ctx.shadowBlur = 28;
+    const crownW = 220;
+    const crownH = 136;
+    const crownX = centerX - Math.floor(crownW / 2);
+    const crownY = 216;
+    ctx.drawImage(crown, crownX, crownY, crownW, crownH);
     ctx.restore();
   }
 
   // Hero text block
   ctx.fillStyle = "#ffe9c8";
-  ctx.font = '700 90px "Orbitron", "Inter", "Segoe UI", sans-serif';
+  ctx.font = '800 80px "Orbitron", "Inter", "Segoe UI", sans-serif';
   const heroName = fitText(ctx, `#1 ${String(first.name || "Unknown")}`.toUpperCase(), 1320);
   ctx.fillText(heroName, centerX - ctx.measureText(heroName).width / 2, 764);
 
@@ -932,8 +943,25 @@ async function buildLeaderboardImage(guild, topRows) {
     let x = Math.round(centerX - total / 2);
     for (let i = 0; i < 5; i++) {
       ctx.font = `700 ${fontPx}px "Segoe UI Emoji", "Segoe UI Symbol", "Inter", sans-serif`;
-      ctx.fillStyle = i < full ? "#ffd27a" : "rgba(255,242,214,0.45)";
+      if (i < full) {
+        const sg = ctx.createLinearGradient(0, 876 - fontPx, 0, 876 + 6);
+        sg.addColorStop(0, "#fff7d6");
+        sg.addColorStop(0.45, "#ffd978");
+        sg.addColorStop(1, "#ffb84a");
+        ctx.fillStyle = sg;
+        ctx.shadowColor = "rgba(255, 208, 118, 0.9)";
+        ctx.shadowBlur = 14;
+      } else {
+        ctx.fillStyle = "rgba(255,242,214,0.45)";
+        ctx.shadowBlur = 0;
+      }
       ctx.fillText(i < full ? "★" : "☆", x, 876);
+      if (i < full) {
+        ctx.beginPath();
+        ctx.fillStyle = "rgba(255,255,240,0.85)";
+        ctx.arc(x + fontPx * 0.35, 844 + (i % 2) * 4, 2.1, 0, Math.PI * 2);
+        ctx.fill();
+      }
       x += starW + gap;
     }
 
@@ -2741,6 +2769,7 @@ if (!BOT_TOKEN) {
   throw new Error("Missing bot token. Set DISCORD_TOKEN or BOT_TOKEN in .env");
 }
 client.login(BOT_TOKEN);
+
 
 
 
