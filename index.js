@@ -796,7 +796,7 @@ async function buildLeaderboardImage(guild, topRows) {
 
     const first = rows[0];
     const centerX = Math.round(width / 2);
-    const centerY = scaleY(390);
+    const centerY = scaleY(408);
 
     const heroBox = {
       x: scaleX(160),
@@ -805,7 +805,7 @@ async function buildLeaderboardImage(guild, topRows) {
       h: scaleY(360),
     };
 
-    const topAvatarSize = scaleU(220);
+    const topAvatarSize = scaleU(238);
     const topAvatarX = Math.round(centerX - topAvatarSize / 2);
     const topAvatarY = Math.round(centerY - topAvatarSize / 2);
 
@@ -818,26 +818,26 @@ async function buildLeaderboardImage(guild, topRows) {
     });
 
     const topRadius = Math.round(topAvatarSize / 2);
-    const usernameY = centerY + topRadius + scaleY(38);
+    const usernameY = centerY + topRadius + scaleY(42);
 
     ctx.fillStyle = "#ffe5c1";
     ctx.font = `700 ${Math.max(30, scaleU(56))}px "Orbitron", "Inter", "Segoe UI", sans-serif`;
-    const topName = fitText(ctx, `#1 ${String(first.name || "Unknown")}`.toUpperCase(), scaleX(900));
+    const topName = fitText(ctx, `#1 ${String(first.name || "Unknown")}`.toUpperCase(), scaleX(840));
     ctx.fillText(topName, (width - ctx.measureText(topName).width) / 2, usernameY);
 
     const ratingNum = typeof first.rating === "number" ? first.rating : null;
     const ratingLabel = ratingNum !== null ? `${ratingNum.toFixed(2)}/5` : "No rating";
-    const ticketsLine = `${first.tickets} Tickets  |  ${ratingLabel}`;
+    const ticketsLine = `${first.tickets} Tickets`;
     ctx.font = `600 ${Math.max(22, scaleU(36))}px "Orbitron", "Inter", "Segoe UI", sans-serif`;
     ctx.fillStyle = "#ffd9ac";
-    const ticketsY = usernameY + scaleY(52);
-    const ticketsSafe = fitText(ctx, ticketsLine, scaleX(860));
+    const ticketsY = usernameY + scaleY(48);
+    const ticketsSafe = fitText(ctx, ticketsLine, scaleX(760));
     ctx.fillText(ticketsSafe, (width - ctx.measureText(ticketsSafe).width) / 2, ticketsY);
 
     if (ratingNum !== null) {
       const full = Math.max(0, Math.min(5, Math.round(ratingNum)));
-      const starY = ticketsY + scaleY(44);
-      const starFontPx = Math.max(24, scaleU(38));
+      const starY = ticketsY + scaleY(36);
+      const starFontPx = Math.max(18, scaleU(30));
       const gap = Math.max(5, scaleU(6));
       const starW = starFontPx;
       const totalW = 5 * starW + 4 * gap;
@@ -850,16 +850,21 @@ async function buildLeaderboardImage(guild, topRows) {
       }
     }
 
+      ctx.font = `600 ${Math.max(16, scaleU(24))}px "Orbitron", "Inter", "Segoe UI", sans-serif`;
+      ctx.fillStyle = "rgba(255, 230, 188, 0.9)";
+      const ratingText = fitText(ctx, ratingLabel, scaleX(300));
+      ctx.fillText(ratingText, (width - ctx.measureText(ratingText).width) / 2, starY + scaleY(34));
+
     roundedRectPath(ctx, heroBox.x, heroBox.y, heroBox.w, heroBox.h, scaleU(24));
     ctx.strokeStyle = "rgba(255, 190, 110, 0.20)";
     ctx.lineWidth = Math.max(1.5, scaleU(2));
     ctx.stroke();
 
     const cards = [
-      { rank: 2, x: scaleX(150), y: scaleY(700), w: scaleX(610), h: scaleY(95), avatar: scaleU(82), nameFont: scaleU(50), statFont: scaleU(34) },
-      { rank: 3, x: scaleX(776), y: scaleY(700), w: scaleX(610), h: scaleY(95), avatar: scaleU(82), nameFont: scaleU(50), statFont: scaleU(34) },
-      { rank: 4, x: scaleX(150), y: scaleY(815), w: scaleX(610), h: scaleY(95), avatar: scaleU(82), nameFont: scaleU(46), statFont: scaleU(30) },
-      { rank: 5, x: scaleX(776), y: scaleY(815), w: scaleX(610), h: scaleY(95), avatar: scaleU(82), nameFont: scaleU(46), statFont: scaleU(30) },
+      { rank: 2, x: scaleX(184), y: scaleY(705), w: scaleX(580), h: scaleY(88), avatar: scaleU(76), nameFont: scaleU(44), statFont: scaleU(30) },
+      { rank: 3, x: scaleX(776), y: scaleY(705), w: scaleX(580), h: scaleY(88), avatar: scaleU(76), nameFont: scaleU(44), statFont: scaleU(30) },
+      { rank: 4, x: scaleX(184), y: scaleY(815), w: scaleX(580), h: scaleY(88), avatar: scaleU(76), nameFont: scaleU(40), statFont: scaleU(28) },
+      { rank: 5, x: scaleX(776), y: scaleY(815), w: scaleX(580), h: scaleY(88), avatar: scaleU(76), nameFont: scaleU(40), statFont: scaleU(28) },
     ];
 
     for (const card of cards) {
@@ -887,10 +892,7 @@ async function buildLeaderboardImage(guild, topRows) {
 
       const rrn = typeof row.rating === "number" ? row.rating : null;
       const rrLabel = rrn !== null ? `${rrn.toFixed(2)}/5` : "No rating";
-      const rrStars = rrn !== null ? starsFromRating(rrn) : "";
-      const line2Raw = rrn !== null
-        ? `${row.tickets} Tickets  |  ${rrLabel} ${rrStars}`
-        : `${row.tickets} Tickets  |  ${rrLabel}`;
+      const line2Raw = `${row.tickets} Tickets  |  ${rrLabel}`;
 
       ctx.fillStyle = "#ffd9ae";
       ctx.font = `600 ${Math.max(12, card.statFont)}px "Orbitron", "Inter", "Segoe UI", sans-serif`;
@@ -2708,6 +2710,10 @@ if (!BOT_TOKEN) {
   throw new Error("Missing bot token. Set DISCORD_TOKEN or BOT_TOKEN in .env");
 }
 client.login(BOT_TOKEN);
+
+
+
+
 
 
 
