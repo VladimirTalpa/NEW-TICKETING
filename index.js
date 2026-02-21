@@ -309,6 +309,7 @@ const HELPERS_PATH = path.join(DATA_DIR, "helpers.json");
 const MSGCOUNT_PATH = path.join(DATA_DIR, "messages.json");
 const COUNTER_PATH = path.join(DATA_DIR, "ticketCounter.json");
 const WEEKLY_PATH = path.join(DATA_DIR, "weekly.json");
+const AFK_STATE_PATH = path.join(DATA_DIR, "afk_state.json");
 function readJson(file, fallback = {}) {
   try {
     return JSON.parse(fs.readFileSync(file, "utf8"));
@@ -383,6 +384,7 @@ async function hydrateStateFromSupabase() {
     const remoteTickets = await sbLoadState("tickets_state", null);
     const remoteHelpers = await sbLoadState("helpers", null);
     const remoteWeekly = await sbLoadState("weekly", null);
+    const remoteAfk = await sbLoadState("afk_state", null);
 
     if (remoteMsg && typeof remoteMsg === "object") {
       msgCounts = remoteMsg;
@@ -404,12 +406,17 @@ async function hydrateStateFromSupabase() {
       weekly = remoteWeekly;
       writeJson(WEEKLY_PATH, weekly);
     }
+    if (remoteAfk && typeof remoteAfk === "object") {
+      afkState = { users: {}, ...(remoteAfk || {}) };
+      writeJson(AFK_STATE_PATH, afkState);
+    }
 
     if (!remoteMsg) persistState("messages", msgCounts);
     if (!remoteCounter) persistState("ticketCounter", counter);
     if (!remoteTickets) persistState("tickets_state", tickets);
     if (!remoteHelpers) persistState("helpers", helpers);
     if (!remoteWeekly) persistState("weekly", weekly);
+    if (!remoteAfk) persistState("afk_state", afkState);
   } catch (e) {
     console.error("Supabase hydration failed:", e?.message || e);
   }
@@ -553,6 +560,145 @@ setInterval(() => {
   writeJson(MSGCOUNT_PATH, msgCounts);
   persistState("messages", msgCounts);
 }, 20_000);
+/* ===================== AFK STATE ===================== */
+let afkState = readJson(AFK_STATE_PATH, { users: {} });
+if (!afkState || typeof afkState !== "object") afkState = { users: {} };
+if (!afkState.users || typeof afkState.users !== "object") afkState.users = {};
+
+let afkDirty = false;
+const afkMentionCooldown = new Map();
+
+function saveAfkState() {
+  writeJson(AFK_STATE_PATH, afkState);
+  persistState("afk_state", afkState);
+}
+
+setInterval(() => {
+  if (!afkDirty) return;
+  afkDirty = false;
+  saveAfkState();
+}, 15_000);
+
+function afkKey(guildId, userId) {
+  return `${String(guildId)}:${String(userId)}`;
+}
+
+function parseAfkDuration(input) {
+  const raw = String(input || "").trim();
+  if (!raw) return null;
+  const rx = /(\\d+)\\s*(d|day|days|tag|tage|h|hr|hrs|hour|hours|stunde|stunden|m|min|mins|minute|minutes|minuten|s|sec|secs|second|seconds|sek|sekunde|sekunden)/gi;
+  let total = 0;
+  let found = false;
+  for (const m of raw.matchAll(rx)) {
+    found = true;
+    const n = Number(m[1] || 0);
+    const u = String(m[2] || "").toLowerCase();
+    if (!Number.isFinite(n) || n <= 0) continue;
+    if (u.startsWith("d") || u.startsWith("tag")) total += n * 86400;
+    else if (u.startsWith("h") || u.startsWith("stunde")) total += n * 3600;
+    else if (u.startsWith("m") || u.startsWith("min")) total += n * 60;
+    else total += n;
+  }
+  if (!found || total <= 0) return null;
+  const max = 90 * 24 * 3600;
+  return Math.min(total, max) * 1000;
+}
+
+function humanDuration(ms) {
+  const n = Math.max(0, Math.floor(Number(ms || 0) / 1000));
+  const d = Math.floor(n / 86400);
+  const h = Math.floor((n % 86400) / 3600);
+  const m = Math.floor((n % 3600) / 60);
+  const s = n % 60;
+  const out = [];
+  if (d) out.push(`${d}d`);
+  if (h) out.push(`${h}h`);
+  if (m) out.push(`${m}m`);
+  if (s || out.length === 0) out.push(`${s}s`);
+  return out.join(" ");
+}
+
+function parseAfkCommandArgs(rawArgs) {
+  const text = String(rawArgs || "").trim();
+  const result = { durationMs: null, reason: "AFK" };
+  if (!text) return result;
+
+  const durLabel = text.match(/duration\s*:\s*([\s\S]*?)(?=\s+reason\s*:|$)/i);
+  const reasonLabel = text.match(/reason\s*:\s*([\s\S]*)$/i);
+
+  if (durLabel?.[1]) {
+    result.durationMs = parseAfkDuration(durLabel[1]);
+  }
+  if (reasonLabel?.[1]) {
+    const r = reasonLabel[1].trim();
+    if (r) result.reason = clamp(r, 180);
+  }
+
+  if (!durLabel && !reasonLabel) {
+    const d = parseAfkDuration(text);
+    if (d) {
+      result.durationMs = d;
+      const withoutDur = text
+        .replace(/(\\d+)\\s*(d|day|days|tag|tage|h|hr|hrs|hour|hours|stunde|stunden|m|min|mins|minute|minutes|minuten|s|sec|secs|second|seconds|sek|sekunde|sekunden)/gi, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (withoutDur) result.reason = clamp(withoutDur, 180);
+    } else {
+      result.reason = clamp(text, 180);
+    }
+  }
+
+  return result;
+}
+
+function getAfkRecord(guildId, userId) {
+  const k = afkKey(guildId, userId);
+  return afkState.users[k] || null;
+}
+
+function clearAfkRecord(guildId, userId) {
+  const k = afkKey(guildId, userId);
+  if (!afkState.users[k]) return null;
+  const old = afkState.users[k];
+  delete afkState.users[k];
+  afkDirty = true;
+  return old;
+}
+
+function setAfkRecord(guildId, userId, rec) {
+  const k = afkKey(guildId, userId);
+  afkState.users[k] = rec;
+  afkDirty = true;
+}
+
+function getActiveAfk(guildId, userId, now = Date.now()) {
+  const rec = getAfkRecord(guildId, userId);
+  if (!rec) return null;
+  if (rec.expiresAt && Number(rec.expiresAt) <= now) {
+    clearAfkRecord(guildId, userId);
+    return null;
+  }
+  return rec;
+}
+
+function buildAfkV2Card(title, lines) {
+  const container = new ContainerBuilder()
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`## ${title}`))
+    .addSeparatorComponents(new SeparatorBuilder())
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(lines.join("\n")));
+
+  return {
+    flags: MessageFlags.IsComponentsV2,
+    components: [container],
+    allowedMentions: { parse: [] },
+  };
+}
+
+function shouldSkipAfkAutoClear(messageText) {
+  const txt = String(messageText || "").trim().toLowerCase();
+  if (!txt) return true;
+  return txt.startsWith("?afk");
+}
 
 /* ===================== TICKET COUNTER ===================== */
 let counter = readJson(COUNTER_PATH, { last: 0 });
@@ -2119,6 +2265,125 @@ client.on(Events.MessageCreate, (message) => {
   if (!message.guild || message.author.bot || !isAllowedGuild(message.guild.id)) return;
   bumpMsg(message.author.id);
 });
+client.on(Events.MessageCreate, async (message) => {
+  try {
+    if (!message.guild || message.author.bot || !isAllowedGuild(message.guild.id)) return;
+
+    const guildId = message.guild.id;
+    const userId = message.author.id;
+    const now = Date.now();
+    const content = String(message.content || "").trim();
+    const low = content.toLowerCase();
+
+    if (low.startsWith("?afk")) {
+      const rest = content.slice(4).trim();
+      const parts = rest.split(/\s+/).filter(Boolean);
+      const sub = String(parts[0] || "set").toLowerCase();
+
+      if (sub === "off" || sub === "remove" || sub === "back") {
+        const old = clearAfkRecord(guildId, userId);
+        if (!old) {
+          await message.reply(buildAfkV2Card("AFK", ["You are not AFK."])).catch(() => {});
+          return;
+        }
+        const elapsed = humanDuration(now - Number(old.since || now));
+        await message.reply(buildAfkV2Card("Welcome Back", [
+          `- User: <@${userId}>`,
+          `- AFK time: **${elapsed}**`,
+          `- Mentions while AFK: **${Number(old.pings || 0)}**`,
+        ])).catch(() => {});
+        return;
+      }
+
+      if (sub === "status") {
+        const target = message.mentions.users.first() || message.author;
+        const rec = getActiveAfk(guildId, target.id, now);
+        if (!rec) {
+          await message.reply(buildAfkV2Card("AFK Status", [`- <@${target.id}> is not AFK.`])).catch(() => {});
+          return;
+        }
+        const remain = rec.expiresAt ? humanDuration(Number(rec.expiresAt) - now) : "No timer";
+        await message.reply(buildAfkV2Card("AFK Status", [
+          `- User: <@${target.id}>`,
+          `- Reason: **${clamp(rec.reason || "AFK", 180)}**`,
+          `- Since: <t:${Math.floor(Number(rec.since || now) / 1000)}:R>`,
+          `- Remaining: **${remain}**`,
+          `- Pings: **${Number(rec.pings || 0)}**`,
+        ])).catch(() => {});
+        return;
+      }
+
+      if (sub === "help") {
+        await message.reply(buildAfkV2Card("AFK Help", [
+          "- `?afk set duration: 1d 2h 30m reason: Schlafen`",
+          "- `?afk set 45m Lernen`",
+          "- `?afk status @user`",
+          "- `?afk off`",
+          "- Supported units: `d h m s`",
+        ])).catch(() => {});
+        return;
+      }
+
+      const argText = sub === "set" ? rest.slice(3).trim() : rest;
+      const parsed = parseAfkCommandArgs(argText);
+      const expiresAt = parsed.durationMs ? now + parsed.durationMs : null;
+
+      setAfkRecord(guildId, userId, {
+        reason: clamp(parsed.reason || "AFK", 180),
+        since: now,
+        expiresAt,
+        pings: 0,
+      });
+
+      const durationText = expiresAt ? humanDuration(expiresAt - now) : "No limit";
+      await message.reply(buildAfkV2Card("AFK Enabled", [
+        `- User: <@${userId}>`,
+        `- Reason: **${clamp(parsed.reason || "AFK", 180)}**`,
+        `- Duration: **${durationText}**`,
+        `- Since: <t:${Math.floor(now / 1000)}:F>`,
+      ])).catch(() => {});
+      return;
+    }
+
+    // Auto remove AFK on normal message
+    const selfRec = getActiveAfk(guildId, userId, now);
+    if (selfRec && !shouldSkipAfkAutoClear(content)) {
+      clearAfkRecord(guildId, userId);
+      const elapsed = humanDuration(now - Number(selfRec.since || now));
+      await message.reply(buildAfkV2Card("Welcome Back", [
+        `- User: <@${userId}>`,
+        `- AFK time: **${elapsed}**`,
+        `- Mentions while AFK: **${Number(selfRec.pings || 0)}**`,
+      ])).catch(() => {});
+    }
+
+    if (message.mentions.users.size <= 0) return;
+
+    const notices = [];
+    for (const [mentionedId] of message.mentions.users) {
+      if (mentionedId === userId) continue;
+      const rec = getActiveAfk(guildId, mentionedId, now);
+      if (!rec) continue;
+
+      const cdKey = `${message.channel.id}:${mentionedId}`;
+      const last = afkMentionCooldown.get(cdKey) || 0;
+      if (now - last < 12000) continue;
+      afkMentionCooldown.set(cdKey, now);
+
+      rec.pings = Number(rec.pings || 0) + 1;
+      setAfkRecord(guildId, mentionedId, rec);
+
+      const remain = rec.expiresAt ? humanDuration(Number(rec.expiresAt) - now) : "No timer";
+      notices.push(`- <@${mentionedId}> is AFK: **${clamp(rec.reason || "AFK", 120)}** (remaining: **${remain}**)`);
+    }
+
+    if (notices.length > 0) {
+      await message.reply(buildAfkV2Card("AFK Notice", notices)).catch(() => {});
+    }
+  } catch (e) {
+    console.error("AFK HANDLER ERROR:", e?.message || e);
+  }
+});
 
 /* ===================== SLASH COMMANDS ===================== */
 const slashCommands = [
@@ -2769,6 +3034,17 @@ if (!BOT_TOKEN) {
   throw new Error("Missing bot token. Set DISCORD_TOKEN or BOT_TOKEN in .env");
 }
 client.login(BOT_TOKEN);
+
+
+
+
+
+
+
+
+
+
+
 
 
 
