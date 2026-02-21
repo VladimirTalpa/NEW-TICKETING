@@ -586,7 +586,7 @@ function afkKey(guildId, userId) {
 function parseAfkDuration(input) {
   const raw = String(input || "").trim();
   if (!raw) return null;
-  const rx = /(\\d+)\\s*(d|day|days|tag|tage|h|hr|hrs|hour|hours|stunde|stunden|m|min|mins|minute|minutes|minuten|s|sec|secs|second|seconds|sek|sekunde|sekunden)/gi;
+  const rx = /(\d+)\s*(d|day|days|tag|tage|h|hr|hrs|hour|hours|stunde|stunden|m|min|mins|minute|minutes|minuten|s|sec|secs|second|seconds|sek|sekunde|sekunden)/gi;
   let total = 0;
   let found = false;
   for (const m of raw.matchAll(rx)) {
@@ -639,7 +639,7 @@ function parseAfkCommandArgs(rawArgs) {
     if (d) {
       result.durationMs = d;
       const withoutDur = text
-        .replace(/(\\d+)\\s*(d|day|days|tag|tage|h|hr|hrs|hour|hours|stunde|stunden|m|min|mins|minute|minutes|minuten|s|sec|secs|second|seconds|sek|sekunde|sekunden)/gi, " ")
+        .replace(/(\d+)\s*(d|day|days|tag|tage|h|hr|hrs|hour|hours|stunde|stunden|m|min|mins|minute|minutes|minuten|s|sec|secs|second|seconds|sek|sekunde|sekunden)/gi, " ")
         .replace(/\s+/g, " ")
         .trim();
       if (withoutDur) result.reason = clamp(withoutDur, 180);
@@ -697,7 +697,7 @@ function buildAfkV2Card(title, lines) {
 function shouldSkipAfkAutoClear(messageText) {
   const txt = String(messageText || "").trim().toLowerCase();
   if (!txt) return true;
-  return txt.startsWith("?afk");
+  return txt.startsWith("!afk") || txt.startsWith("?afk");
 }
 
 /* ===================== TICKET COUNTER ===================== */
@@ -2268,6 +2268,97 @@ client.on(Events.MessageCreate, (message) => {
 client.on(Events.MessageCreate, async (message) => {
   try {
     if (!message.guild || message.author.bot || !isAllowedGuild(message.guild.id)) return;
+    const raw = String(message.content || "").trim();
+    if (!raw.startsWith("!")) return;
+
+    const low = raw.toLowerCase();
+    if (low.startsWith("!afk")) return;
+    if (low === "!close") return;
+
+    if (low === "!leaderboard" || low === "!lb") {
+      await refreshLeaderboardStateFromSupabase();
+      const top = Object.entries(helpers)
+        .map(([id, r]) => ({ id, tickets: r.ticketsCompleted || 0, rating: avgRating(r) }))
+        .sort((a, b) => b.tickets - a.tickets)
+        .slice(0, 10);
+
+      const rows = [];
+      for (const item of top) {
+        const member = await message.guild.members.fetch(item.id).catch(() => null);
+        const user = member?.user || null;
+        rows.push({
+          name: member ? member.displayName : `User ${item.id}`,
+          avatarUrl: user
+            ? user.displayAvatarURL({ extension: "png", size: 128, forceStatic: true })
+            : "https://cdn.discordapp.com/embed/avatars/0.png",
+          tickets: item.tickets,
+          rating: item.rating,
+        });
+      }
+
+      const png = await buildLeaderboardImage(message.guild, rows);
+      saveGeneratedPng("leaderboard", png, "alltime-text");
+      const file = new AttachmentBuilder(png, { name: "mohgs-leaderboard.png" });
+      await message.reply({ files: [file] }).catch(() => {});
+      return;
+    }
+
+    if (low === "!weeklyleaderboard" || low === "!wlb") {
+      await refreshLeaderboardStateFromSupabase();
+      touchWeekly();
+      const top = Object.entries(weekly.helpers || {})
+        .map(([id, count]) => ({ id, tickets: count }))
+        .sort((a, b) => b.tickets - a.tickets)
+        .slice(0, 10);
+
+      const rows = [];
+      for (const item of top) {
+        const member = await message.guild.members.fetch(item.id).catch(() => null);
+        const user = member?.user || null;
+        const allTime = helpers[item.id] || {};
+        rows.push({
+          name: member ? member.displayName : `User ${item.id}`,
+          avatarUrl: user
+            ? user.displayAvatarURL({ extension: "png", size: 128, forceStatic: true })
+            : "https://cdn.discordapp.com/embed/avatars/0.png",
+          tickets: item.tickets,
+          rating: avgRating(allTime),
+        });
+      }
+
+      const png = await buildLeaderboardImage(message.guild, rows);
+      saveGeneratedPng("leaderboard", png, "weekly-text");
+      const file = new AttachmentBuilder(png, { name: "mohgs-weekly-leaderboard.png" });
+      await message.reply({ files: [file] }).catch(() => {});
+      return;
+    }
+
+    if (low.startsWith("!profile")) {
+      const mention = message.mentions.users.first() || null;
+      let targetUser = mention || message.author;
+      if (!mention) {
+        const parts = raw.split(/\s+/).filter(Boolean);
+        const id = String(parts[1] || "").trim();
+        if (/^\d{17,20}$/.test(id)) {
+          const fetched = await client.users.fetch(id).catch(() => null);
+          if (fetched) targetUser = fetched;
+        }
+      }
+
+      const rec = ensureHelper(targetUser.id);
+      const png = await buildProfileImage(targetUser, rec);
+      saveGeneratedPng("profile", png, targetUser.id);
+      const file = new AttachmentBuilder(png, { name: "helper-profile.png" });
+      await message.reply({ files: [file] }).catch(() => {});
+      return;
+    }
+  } catch (e) {
+    console.error("TEXT COMMANDS ERROR:", e?.message || e);
+  }
+});
+client.on(Events.MessageCreate, async (message) => {
+  try {
+    if (!message.guild || message.author.bot || !isAllowedGuild(message.guild.id)) return;
 
     const guildId = message.guild.id;
     const userId = message.author.id;
@@ -2275,8 +2366,9 @@ client.on(Events.MessageCreate, async (message) => {
     const content = String(message.content || "").trim();
     const low = content.toLowerCase();
 
-    if (low.startsWith("?afk")) {
-      const rest = content.slice(4).trim();
+    if (low.startsWith("!afk") || low.startsWith("?afk")) {
+      const afkPrefix = low.startsWith("!afk") ? "!afk" : "?afk";
+      const rest = content.slice(afkPrefix.length).trim();
       const parts = rest.split(/\s+/).filter(Boolean);
       const sub = String(parts[0] || "set").toLowerCase();
 
@@ -2313,12 +2405,32 @@ client.on(Events.MessageCreate, async (message) => {
         return;
       }
 
+      if (sub === "list") {
+        const entries = Object.entries(afkState.users || {})
+          .filter(([k, v]) => String(k || "").startsWith(`${guildId}:`) && getActiveAfk(guildId, String(k).split(":")[1], now) && v)
+          .slice(0, 15)
+          .map(([k, v]) => {
+            const uid = String(k).split(":")[1];
+            const remain = v.expiresAt ? humanDuration(Number(v.expiresAt) - now) : "No timer";
+            return `- <@${uid}> | **${clamp(v.reason || "AFK", 80)}** | left: **${remain}**`;
+          });
+
+        if (entries.length === 0) {
+          await message.reply(buildAfkV2Card("AFK List", ["- Nobody is AFK right now."])).catch(() => {});
+          return;
+        }
+
+        await message.reply(buildAfkV2Card("AFK List", entries)).catch(() => {});
+        return;
+      }
+
       if (sub === "help") {
         await message.reply(buildAfkV2Card("AFK Help", [
-          "- `?afk set duration: 1d 2h 30m reason: Schlafen`",
-          "- `?afk set 45m Lernen`",
-          "- `?afk status @user`",
-          "- `?afk off`",
+          "- `!afk set duration: 1d 2h 30m reason: Schlafen`",
+          "- `!afk set 45m Lernen`",
+          "- `!afk status @user`",
+          "- `!afk off`",
+          "- `!afk list`",
           "- Supported units: `d h m s`",
         ])).catch(() => {});
         return;
@@ -3034,6 +3146,14 @@ if (!BOT_TOKEN) {
   throw new Error("Missing bot token. Set DISCORD_TOKEN or BOT_TOKEN in .env");
 }
 client.login(BOT_TOKEN);
+
+
+
+
+
+
+
+
 
 
 
