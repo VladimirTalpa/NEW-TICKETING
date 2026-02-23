@@ -1742,6 +1742,60 @@ async function buildVouchImage({
     ctx.restore();
   }
 
+
+  function drawStarPath(cx, cy, outerR, innerR, rotation = -Math.PI / 2) {
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const a = rotation + (Math.PI / 5) * i;
+      const r = i % 2 === 0 ? outerR : innerR;
+      const x = cx + Math.cos(a) * r;
+      const y = cy + Math.sin(a) * r;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+  }
+
+  function drawRatingStarsBar(x, y, w, h, ratingValue) {
+    const starsCount = 5;
+    const active = Math.max(0, Math.min(starsCount, Math.round(Number(ratingValue) || 0)));
+    const outer = 13;
+    const inner = 5.8;
+    const gap = 14;
+    const totalW = starsCount * (outer * 2) + (starsCount - 1) * gap;
+    let sx = x + Math.floor((w - totalW) / 2) + outer;
+    const sy = y + Math.floor(h / 2) + 1;
+
+    for (let i = 0; i < starsCount; i++) {
+      drawStarPath(sx, sy, outer, inner);
+
+      if (i < active) {
+        const g = ctx.createLinearGradient(sx, sy - outer, sx, sy + outer);
+        g.addColorStop(0, "#fff5da");
+        g.addColorStop(0.5, "#ffd978");
+        g.addColorStop(1, "#ffb84a");
+        ctx.save();
+        ctx.fillStyle = g;
+        ctx.shadowColor = "rgba(255, 180, 80, 0.9)";
+        ctx.shadowBlur = 14;
+        ctx.fill();
+        ctx.restore();
+      } else {
+        ctx.save();
+        ctx.fillStyle = "rgba(255,255,255,0.18)";
+        ctx.fill();
+        ctx.restore();
+      }
+
+      ctx.save();
+      ctx.strokeStyle = i < active ? "rgba(255,245,210,0.95)" : "rgba(255,255,255,0.28)";
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+      ctx.restore();
+
+      sx += outer * 2 + gap;
+    }
+  }
   for (let i = 0; i < 26; i++) {
     drawLightStreak(
       Math.random() * width,
@@ -2226,14 +2280,7 @@ async function buildVouchImage({
   ctx.fillStyle = fillGrad;
   ctx.fill();
 
-  ctx.save();
-  ctx.shadowColor = "rgba(255,170,80,0.95)";
-  ctx.shadowBlur = 20;
-  ctx.font = "700 50px \"Segoe UI Emoji\", \"Segoe UI Symbol\", sans-serif";
-  ctx.fillStyle = "#ffffff";
-  const starsText = "\u2605 \u2605 \u2605 \u2605 \u2605";
-  ctx.fillText(starsText, starBarX + 18, starBarY + 42);
-  ctx.restore();
+  drawRatingStarsBar(starBarX, starBarY, starBarW, starBarH, normalizedScore);
 
   drawLightStreak(starBarX + starBarW / 2, starBarY + starBarH + 2, starBarW - 14, 4, 0, "rgba(255,120,30,0)", "rgba(255,160,60,0.92)", 0.9);
 
@@ -3141,11 +3188,12 @@ client.on(Events.MessageCreate, async (message) => {
   }
 });
 
-/* ===================== LOGIN ===================== */
 if (!BOT_TOKEN) {
   throw new Error("Missing bot token. Set DISCORD_TOKEN or BOT_TOKEN in .env");
 }
 client.login(BOT_TOKEN);
+
+
 
 
 
