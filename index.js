@@ -1225,9 +1225,9 @@ async function buildLeaderboardRowsForPage(guild, entries, page, pageSize = LEAD
   return rows;
 }
 
-function buildLeaderboardNextRow(nextPage, totalPages) {
-  const clampedNext = Math.max(1, Number(nextPage) || 1);
+function buildLeaderboardNextRow(nextPageIndex, totalPages) {
   const total = Math.max(1, Number(totalPages) || 1);
+  const clampedNext = Math.max(0, Number(nextPageIndex) || 0);
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`lb_next:${clampedNext}`)
@@ -2806,19 +2806,19 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     if (interaction.isButton() && interaction.customId.startsWith("lb_next:")) {
       const nextPageRaw = Number((interaction.customId.split(":")[1] || "1").trim());
-      const requestedPage = Number.isFinite(nextPageRaw) ? Math.max(1, nextPageRaw) : 1;
+      const requestedPage = Number.isFinite(nextPageRaw) ? Math.max(0, nextPageRaw) : 0;
 
       await refreshLeaderboardStateFromSupabase();
       const entries = getLeaderboardEntries(LEADERBOARD_MAX_SLOTS);
       const totalPages = Math.max(1, Math.ceil(entries.length / LEADERBOARD_PAGE_SIZE));
-      const page = Math.max(1, Math.min(requestedPage, totalPages));
+      const pageIndex = Math.max(0, Math.min(requestedPage, totalPages - 1));
 
-      const rows = await buildLeaderboardRowsForPage(interaction.guild, entries, page - 1, LEADERBOARD_PAGE_SIZE);
+      const rows = await buildLeaderboardRowsForPage(interaction.guild, entries, pageIndex, LEADERBOARD_PAGE_SIZE);
       const png = await buildLeaderboardImage(interaction.guild, rows);
-      saveGeneratedPng("leaderboard", png, `alltime-p${page}`);
+      saveGeneratedPng("leaderboard", png, `alltime-p${pageIndex + 1}`);
 
-      const file = new AttachmentBuilder(png, { name: `mohgs-leaderboard-p${page}.png` });
-      const row = buildLeaderboardNextRow(page + 1, totalPages);
+      const file = new AttachmentBuilder(png, { name: `mohgs-leaderboard-p${pageIndex + 1}.png` });
+      const row = buildLeaderboardNextRow(pageIndex + 1, totalPages);
 
       await interaction.update({ files: [file], components: [row] }).catch(() => null);
       return;
