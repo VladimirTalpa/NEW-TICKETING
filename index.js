@@ -111,7 +111,7 @@ const EMOJI_QUESTION = "1464644150384132258";
 const EMOJI_STARS = "1465794279380353044";
 const EMOJI_RANK = "1465794532976230440";
 const EMOJI_VOTES = "1465794902540423422";
-const LEADERBOARD_NEXT_EMOJI_ID = "1439953727308955690";
+const LEADERBOARD_NEXT_EMOJI_ID = "1475609703496159303";
 const LEADERBOARD_PAGE_SIZE = 10;
 const LEADERBOARD_MAX_SLOTS = 50;
 const DM_AUTO_DELETE_MS = 5 * 60 * 1000;
@@ -1225,16 +1225,25 @@ async function buildLeaderboardRowsForPage(guild, entries, page, pageSize = LEAD
   return rows;
 }
 
-function buildLeaderboardNextRow(nextPageIndex, totalPages) {
+function buildLeaderboardPageSelectRow(currentPageIndex, totalPages) {
   const total = Math.max(1, Number(totalPages) || 1);
-  const clampedNext = Math.max(0, Number(nextPageIndex) || 0);
+  const current = Math.max(0, Math.min(Number(currentPageIndex) || 0, total - 1));
+
+  const opts = [];
+  for (let i = 0; i < total; i++) {
+    opts.push({
+      label: `Page ${i + 1}`,
+      value: String(i),
+      description: `Helpers ${i * LEADERBOARD_PAGE_SIZE + 1}-${Math.min((i + 1) * LEADERBOARD_PAGE_SIZE, LEADERBOARD_MAX_SLOTS)}`,
+      default: i === current,
+    });
+  }
+
   return new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`lb_next:${clampedNext}`)
-      .setStyle(ButtonStyle.Secondary)
-      .setEmoji({ id: LEADERBOARD_NEXT_EMOJI_ID, name: "next" })
-      .setLabel(`Next (${Math.min(clampedNext + 1, total)}/${total})`)
-      .setDisabled(clampedNext >= total)
+    new StringSelectMenuBuilder()
+      .setCustomId("lb_page_select")
+      .setPlaceholder(`Select page (${current + 1}/${total})`)
+      .addOptions(opts)
   );
 }
 
@@ -2747,7 +2756,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       saveGeneratedPng("leaderboard", png, `alltime-p${page + 1}`);
 
       const file = new AttachmentBuilder(png, { name: `mohgs-leaderboard-p${page + 1}.png` });
-      const row = buildLeaderboardNextRow(page + 1, totalPages);
+      const row = buildLeaderboardPageSelectRow(page, totalPages);
 
       return safeReply(interaction, { files: [file], components: [row] });
     }
@@ -2804,9 +2813,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
     if (interaction.isChatInputCommand()) return;
     if (interaction.guildId && !isAllowedGuild(interaction.guildId)) return;
 
-    if (interaction.isButton() && interaction.customId.startsWith("lb_next:")) {
-      const nextPageRaw = Number((interaction.customId.split(":")[1] || "1").trim());
-      const requestedPage = Number.isFinite(nextPageRaw) ? Math.max(0, nextPageRaw) : 0;
+    if (interaction.isStringSelectMenu() && interaction.customId === "lb_page_select") {
+      const raw = Number((interaction.values?.[0] || "0").trim());
+      const requestedPage = Number.isFinite(raw) ? Math.max(0, raw) : 0;
 
       await refreshLeaderboardStateFromSupabase();
       const entries = getLeaderboardEntries(LEADERBOARD_MAX_SLOTS);
@@ -2818,7 +2827,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       saveGeneratedPng("leaderboard", png, `alltime-p${pageIndex + 1}`);
 
       const file = new AttachmentBuilder(png, { name: `mohgs-leaderboard-p${pageIndex + 1}.png` });
-      const row = buildLeaderboardNextRow(pageIndex + 1, totalPages);
+      const row = buildLeaderboardPageSelectRow(pageIndex, totalPages);
 
       await interaction.update({ files: [file], components: [row] }).catch(() => null);
       return;
