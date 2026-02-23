@@ -111,6 +111,9 @@ const EMOJI_QUESTION = "1464644150384132258";
 const EMOJI_STARS = "1465794279380353044";
 const EMOJI_RANK = "1465794532976230440";
 const EMOJI_VOTES = "1465794902540423422";
+const LEADERBOARD_NEXT_EMOJI_ID = "1439953727308955690";
+const LEADERBOARD_PAGE_SIZE = 10;
+const LEADERBOARD_MAX_SLOTS = 50;
 const DM_AUTO_DELETE_MS = 5 * 60 * 1000;
 
 function em(id, name = "e") {
@@ -1181,6 +1184,60 @@ async function buildLeaderboardImage(guild, topRows) {
 
   return canvas.toBuffer("image/png");
 }
+function getLeaderboardEntries(limit = LEADERBOARD_MAX_SLOTS) {
+  return Object.entries(helpers)
+    .map(([id, r]) => ({
+      id,
+      tickets: Number(r?.ticketsCompleted || 0),
+      rating: avgRating(r),
+    }))
+    .sort((a, b) => {
+      if (b.tickets !== a.tickets) return b.tickets - a.tickets;
+      const ar = typeof a.rating === "number" ? a.rating : -1;
+      const br = typeof b.rating === "number" ? b.rating : -1;
+      return br - ar;
+    })
+    .slice(0, Math.max(1, Number(limit) || LEADERBOARD_MAX_SLOTS));
+}
+
+async function buildLeaderboardRowsForPage(guild, entries, page, pageSize = LEADERBOARD_PAGE_SIZE) {
+  const safePageSize = Math.max(1, Number(pageSize) || LEADERBOARD_PAGE_SIZE);
+  const safePage = Math.max(0, Number(page) || 0);
+  const start = safePage * safePageSize;
+  const pageEntries = entries.slice(start, start + safePageSize);
+  const rows = [];
+
+  for (let i = 0; i < pageEntries.length; i++) {
+    const entry = pageEntries[i];
+    const member = await guild.members.fetch(entry.id).catch(() => null);
+    const user = member?.user || guild.client.users.cache.get(entry.id) || (await guild.client.users.fetch(entry.id).catch(() => null));
+
+    rows.push({
+      name: member ? member.displayName : user?.username ? user.username : `User ${entry.id}`,
+      avatarUrl: user
+        ? user.displayAvatarURL({ extension: "png", size: 256, forceStatic: true })
+        : "https://cdn.discordapp.com/embed/avatars/0.png",
+      tickets: entry.tickets,
+      rating: entry.rating,
+    });
+  }
+
+  return rows;
+}
+
+function buildLeaderboardNextRow(nextPage, totalPages) {
+  const clampedNext = Math.max(1, Number(nextPage) || 1);
+  const total = Math.max(1, Number(totalPages) || 1);
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`lb_next:${clampedNext}`)
+      .setStyle(ButtonStyle.Secondary)
+      .setEmoji({ id: LEADERBOARD_NEXT_EMOJI_ID, name: "next" })
+      .setLabel(`Next (${Math.min(clampedNext + 1, total)}/${total})`)
+      .setDisabled(clampedNext >= total)
+  );
+}
+
 async function buildProfileImage(user, rec) {
   const width = 1200;
   const height = 700;
@@ -2680,31 +2737,19 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     if (cmd === "leaderboard") {
       await refreshLeaderboardStateFromSupabase();
-      const top = Object.entries(helpers)
-        .map(([id, r]) => ({
-          id,
-          tickets: r.ticketsCompleted || 0,
-          rating: avgRating(r),
-        }))
-        .sort((a, b) => b.tickets - a.tickets)
-        .slice(0, 10);
-      const rows = [];
-      for (let i = 0; i < top.length; i++) {
-        const member = await interaction.guild.members.fetch(top[i].id).catch(() => null);
-        const user = member?.user || null;
-        rows.push({
-          name: member ? member.displayName : `User ${top[i].id}`,
-          avatarUrl: user
-            ? user.displayAvatarURL({ extension: "png", size: 128, forceStatic: true })
-            : "https://cdn.discordapp.com/embed/avatars/0.png",
-          tickets: top[i].tickets,
-          rating: top[i].rating,
-        });
-      }
+
+      const entries = getLeaderboardEntries(LEADERBOARD_MAX_SLOTS);
+      const totalPages = Math.max(1, Math.ceil(entries.length / LEADERBOARD_PAGE_SIZE));
+      const page = 0;
+
+      const rows = await buildLeaderboardRowsForPage(interaction.guild, entries, page, LEADERBOARD_PAGE_SIZE);
       const png = await buildLeaderboardImage(interaction.guild, rows);
-      saveGeneratedPng("leaderboard", png, "alltime");
-      const file = new AttachmentBuilder(png, { name: "mohgs-leaderboard.png" });
-      return safeReply(interaction, { files: [file] });
+      saveGeneratedPng("leaderboard", png, `alltime-p${page + 1}`);
+
+      const file = new AttachmentBuilder(png, { name: `mohgs-leaderboard-p${page + 1}.png` });
+      const row = buildLeaderboardNextRow(page + 1, totalPages);
+
+      return safeReply(interaction, { files: [file], components: [row] });
     }
 
     if (cmd === "weeklyleaderboard") {
@@ -2758,6 +2803,26 @@ client.on(Events.InteractionCreate, async (interaction) => {
   try {
     if (interaction.isChatInputCommand()) return;
     if (interaction.guildId && !isAllowedGuild(interaction.guildId)) return;
+
+    if (interaction.isButton() && interaction.customId.startsWith("lb_next:")) {
+      const nextPageRaw = Number((interaction.customId.split(":")[1] || "1").trim());
+      const requestedPage = Number.isFinite(nextPageRaw) ? Math.max(1, nextPageRaw) : 1;
+
+      await refreshLeaderboardStateFromSupabase();
+      const entries = getLeaderboardEntries(LEADERBOARD_MAX_SLOTS);
+      const totalPages = Math.max(1, Math.ceil(entries.length / LEADERBOARD_PAGE_SIZE));
+      const page = Math.max(1, Math.min(requestedPage, totalPages));
+
+      const rows = await buildLeaderboardRowsForPage(interaction.guild, entries, page - 1, LEADERBOARD_PAGE_SIZE);
+      const png = await buildLeaderboardImage(interaction.guild, rows);
+      saveGeneratedPng("leaderboard", png, `alltime-p${page}`);
+
+      const file = new AttachmentBuilder(png, { name: `mohgs-leaderboard-p${page}.png` });
+      const row = buildLeaderboardNextRow(page + 1, totalPages);
+
+      await interaction.update({ files: [file], components: [row] }).catch(() => null);
+      return;
+    }
 
     if (interaction.isButton() && interaction.customId === "ticket_open") {
       return interaction.reply(buildGameSelectorPayload("carry"));
