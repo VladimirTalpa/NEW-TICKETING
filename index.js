@@ -1,4 +1,4 @@
-﻿"use strict";
+"use strict";
 
 const fs = require("fs");
 const path = require("path");
@@ -36,7 +36,6 @@ const BOT_TOKEN = process.env.DISCORD_TOKEN || process.env.BOT_TOKEN || "";
 const PRIMARY_GUILD_ID = process.env.PRIMARY_GUILD_ID || "1259733702280216638";
 const FORCED_HELPER_ROLES = {
   ac: "1395663621731651635",
-  ap: "1470179253533413522",
   av: "1421548785154129971",
   utd: "1452695019554209945",
 };
@@ -1489,7 +1488,6 @@ const GAMES = [
   { label: "Anime Vanguards", value: "av" },
   { label: "Universal Tower Defense", value: "utd" },
   { label: "Anime Crusaders", value: "ac" },
-  { label: "Anime Paradox", value: "ap" },
 ];
 
 function safeUserForChannel(str) {
@@ -1650,7 +1648,7 @@ function buildMainPanelPayload() {
     )
     .addFields({
       name: "Supported games",
-      value: `${em(EMOJI_TICKET, "ticket")} Anime Vanguards\n${em(EMOJI_TICKET, "ticket")} Universal Tower Defense\n${em(EMOJI_TICKET, "ticket")} Anime Crusaders\n${em(EMOJI_TICKET, "ticket")} Anime Paradox`,
+      value: `${em(EMOJI_TICKET, "ticket")} Anime Vanguards\n${em(EMOJI_TICKET, "ticket")} Universal Tower Defense\n${em(EMOJI_TICKET, "ticket")} Anime Crusaders`,
     })
     .setImage(BANNER_MAIN_AND_CARRY);
 
