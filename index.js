@@ -1488,7 +1488,6 @@ const GAMES = [
   { label: "Anime Vanguards", value: "av" },
   { label: "Universal Tower Defense", value: "utd" },
   { label: "Anime Crusaders", value: "ac" },
-  { label: "Bizarre Lineage", value "bl"},
 ];
 
 function safeUserForChannel(str) {
