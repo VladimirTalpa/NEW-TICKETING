@@ -1488,6 +1488,7 @@ const GAMES = [
   { label: "Anime Vanguards", value: "av" },
   { label: "Universal Tower Defense", value: "utd" },
   { label: "Anime Crusaders", value: "ac" },
+  { label: "Bizarre Lineage (BL)", value: "bl" },
 ];
 
 function safeUserForChannel(str) {
@@ -1648,7 +1649,7 @@ function buildMainPanelPayload() {
     )
     .addFields({
       name: "Supported games",
-      value: `${em(EMOJI_TICKET, "ticket")} Anime Vanguards\n${em(EMOJI_TICKET, "ticket")} Universal Tower Defense\n${em(EMOJI_TICKET, "ticket")} Anime Crusaders`,
+      value: `${em(EMOJI_TICKET, "ticket")} Anime Vanguards\n${em(EMOJI_TICKET, "ticket")} Universal Tower Defense\n${em(EMOJI_TICKET, "ticket")} Anime Crusaders\n${em(EMOJI_TICKET, "ticket")} Bizarre Lineage (BL)`,
     })
     .setImage(BANNER_MAIN_AND_CARRY);
 
