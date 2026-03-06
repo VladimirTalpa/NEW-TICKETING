@@ -494,6 +494,12 @@ function helperRoleForGame(guildId, game) {
   const id = String(candidate || "");
   return isSnowflake(id) ? id : null;
 }
+
+async function resolveGuildRole(guild, roleId) {
+  const id = String(roleId || "");
+  if (!guild || !isSnowflake(id)) return null;
+  return guild.roles.cache.get(id) || (await guild.roles.fetch(id).catch(() => null));
+}
 function memberRoleIds(member) {
   if (!member) return new Set();
   if (member?.roles?.cache) return new Set(member.roles.cache.keys());
@@ -2896,7 +2902,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
       const guild = interaction.guild;
       const user = interaction.user;
       const helperRoleId = helperRoleForGame(guild.id, game);
-      if (!helperRoleId || !guild.roles.cache.has(helperRoleId)) {
+      const helperRole = await resolveGuildRole(guild, helperRoleId);
+      if (!helperRoleId || !helperRole) {
         return safeReply(interaction, { content: "Helper role not configured." });
       }
 
@@ -2991,7 +2998,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
       if (!nickname || !helpText) return safeReply(interaction, { content: "Please fill in all fields." });
 
       const helperRoleId = helperRoleForGame(guild.id, game);
-      if (!helperRoleId || !guild.roles.cache.has(helperRoleId)) {
+      const helperRole = await resolveGuildRole(guild, helperRoleId);
+      if (!helperRoleId || !helperRole) {
         return safeReply(interaction, { content: "Helper role not configured." });
       }
       const staffRoleIds = existingRoleIds(guild, [...STAFF_CLOSE_ROLES]);
@@ -3012,7 +3020,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
           ],
         },
         {
-          id: helperRoleId,
+          id: helperRole.id,
           allow: [
             PermissionsBitField.Flags.ViewChannel,
             PermissionsBitField.Flags.SendMessages,
@@ -3234,6 +3242,18 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
   } catch (e) {
     console.error("UI HANDLER ERROR:", e);
+    if (interaction?.isRepliable?.()) {
+      try {
+        if (interaction.deferred || interaction.replied) {
+          await interaction.editReply({ content: "Error occurred. Check bot logs." });
+        } else {
+          await interaction.reply({
+            content: "Error occurred. Check bot logs.",
+            flags: MessageFlags.Ephemeral,
+          });
+        }
+      } catch {}
+    }
   }
 });
 
